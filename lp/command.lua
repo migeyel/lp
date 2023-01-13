@@ -175,6 +175,13 @@ threads.register(function()
                 handleExit(user, { unpack(args, 2) })
             elseif args[1] == "rawdelta" and etc.ownerOnly then
                 handleRawdelta(user, { unpack(args, 2) })
+            elseif args[1] == "help" or args[1] == "" or args[1] == nil then
+                tell(
+                    user,
+                    "Come check PG231's liquidity pool store at "
+                    .. "(x = 286, z = -248)! You can buy *and* sell items! "
+                    .. "Begin by using \\lp start"
+                )
             else
                 tell(user, ("Error: Unknown subcommand %q"):format(
                     ((args or {})[1] or ""):sub(1, 32)
