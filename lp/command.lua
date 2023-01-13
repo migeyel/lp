@@ -45,7 +45,7 @@ local function handleStart(user, args)
     local playerHere = false
     for _, e in pairs(entities) do
         local valid = e.key == "minecraft:player"
-            and e.name:lower() == user
+            and e.name:lower() == user:lower()
             and math.max(e.x, e.y, e.z) < SENSOR_RADIUS_INFINITY_NORM
         if valid then
             playerHere = true
@@ -164,6 +164,7 @@ end
 threads.register(function()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
+        user = user:lower()
         if command == "lp" then
             if args[1] == "start" then
                 handleStart(user, { unpack(args, 2) })
