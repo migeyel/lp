@@ -12,6 +12,25 @@ state.accounts = state.accounts or {}
 state.session = nil
 state.commit()
 
+-- user: string
+local startEvent = event.register()
+
+-- user: string
+-- transferred: number
+-- remaining: number
+local endEvent = event.register()
+
+-- no params
+local buyEvent = event.register()
+
+-- no params
+local sellEvent = event.register()
+
+-- user: string
+local sessionBalChangeEvent = event.register()
+
+local mFloor, mCeil = util.mFloor, util.mCeil
+
 ---@class Account
 ---@field username string
 ---@field balance number
@@ -57,6 +76,10 @@ function Account:transfer(delta, commit)
     delta = math.max(delta, -self.balance)
     self.balance = util.mFloor(self.balance + delta)
     if commit then state.commit() end
+    local session = state.session
+    if session and session:account() == self then
+       sessionBalChangeEvent.queue(self.username)
+    end
     return delta, self.balance
 end
 
@@ -67,6 +90,10 @@ function Account:tryTransfer(delta, commit)
     if self.balance < -delta then return false end
     self.balance = self.balance + delta
     if commit then state.commit() end
+    local session = state.session
+    if session and session:account() == self then
+       sessionBalChangeEvent.queue(self.username)
+    end
     return true
 end
 
@@ -78,25 +105,6 @@ end
 ---@field sellFees table
 ---@field closed boolean
 local Session = {}
-
--- user: string
-local startEvent = event.register()
-
--- user: string
--- transferred: number
--- remaining: number
-local endEvent = event.register()
-
--- no params
-local buyEvent = event.register()
-
--- no params
-local sellEvent = event.register()
-
--- user: string
-local sessionBalChangeEvent = event.register()
-
-local mFloor, mCeil = util.mFloor, util.mCeil
 
 ---@return Session|nil
 local function get()
