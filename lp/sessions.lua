@@ -112,6 +112,8 @@ local function create(username, commit)
 
     username = username:lower()
 
+    getAcctOrCreate(username, false)
+
     state.session = {
         user = username,
         lastActive = os.epoch("utc"),
