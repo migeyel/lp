@@ -236,7 +236,8 @@ end
 function Session:close()
     local acct = self:account()
     local balFloor = math.floor(acct.balance)
-    local amt, rem = acct:transfer(-balFloor, false)
+    local delta, rem = acct:transfer(-balFloor, false)
+    local amt = -delta
     wallet.setPendingTx(self.user .. "@" .. KRISTPAY_DOMAIN, amt,  {}, false)
     state.session = nil
     setmetatable(self, { __index = closedSessionError })
