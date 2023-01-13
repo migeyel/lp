@@ -54,7 +54,8 @@ local function handleStart(user, args)
     end
 
     if not playerHere then
-        tell(user, "Error: Please get near the shop")
+        local m = "Error: Please get near the shop. It's located at (x = 286, z = -248)"
+        tell(user, m)
         return
     end
 
