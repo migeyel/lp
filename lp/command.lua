@@ -4,6 +4,9 @@ local pools   = require "lp.pools"
 local inventory = require "lp.inventory"
 local log = require "lp.log"
 
+local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
+local SENSOR_RADIUS_INFINITY_NORM = 5
+
 local chatbox = chatbox
 if not chatbox then
     -- dummy
@@ -35,6 +38,23 @@ end
 local function handleStart(user, args)
     if #args ~= 0 then
         tell(user, "Usage: \\lp start")
+        return
+    end
+
+    local entities = sensor.sense()
+    local playerHere = false
+    for _, e in pairs(entities) do
+        local valid = e.key == "minecraft:player"
+            and e.name:lower() == user
+            and math.max(e.x, e.y, e.z) < SENSOR_RADIUS_INFINITY_NORM
+        if valid then
+            playerHere = true
+            break
+        end
+    end
+
+    if not playerHere then
+        tell(user, "Error: Please get near the shop")
         return
     end
 
