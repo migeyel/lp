@@ -15,6 +15,7 @@ local function suck()
         local guard = inventory.turtleMutex.lock()
         turtle.suckUp()
         if turtle.getItemCount(1) == 0 then
+            guard.unlock()
             sleep(INTERVAL)
         else
             local item = turtle.getItemDetail(1, true)
@@ -62,8 +63,8 @@ local function suck()
             end
             turtle.select(1)
             turtle.drop()
+            guard.unlock()
         end
-        guard.unlock()
     end
 end
 
