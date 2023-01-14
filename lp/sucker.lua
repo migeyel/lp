@@ -12,10 +12,11 @@ local modem = peripheral.find("modem")
 
 local function suck()
     while true do
-        sleep(INTERVAL)
         local guard = inventory.turtleMutex.lock()
         turtle.suckUp()
-        if turtle.getItemCount(1) > 0 then
+        if turtle.getItemCount(1) == 0 then
+            sleep(INTERVAL)
+        else
             local item = turtle.getItemDetail(1, true)
             local poolId = item.name .. "~" .. (item.nbt or "NONE")
             local session = sessions.get()
@@ -77,5 +78,9 @@ threads.register(function()
             function() sessions.endEvent.pull() end,
             suck
         )
+        local guard = inventory.turtleMutex.lock()
+        turtle.select(1)
+        turtle.drop()
+        guard.unlock()
     end
 end)

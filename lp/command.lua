@@ -122,6 +122,8 @@ local function handleBuy(user, args)
             local remaining = amount
             while remaining > 0 do
                 local guard = inventory.turtleMutex.lock()
+                turtle.select(1)
+                turtle.drop()
                 local pushed = inventory.inv.pushItems(
                     modem.getNameLocal(),
                     pool.item,
