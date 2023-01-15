@@ -344,10 +344,14 @@ end
 local updateListings = {}
 
 do -- Add pools into the UI.
-    local i = 1
-    for _, pool in pools.pools() do
-        updateListings[i] = addListing(pool, i)
-        i = i + 1
+    local tags = {}
+    for tag in pools.pools() do
+        tags[#tags + 1] = tag
+    end
+    table.sort(tags)
+
+    for i, tag in ipairs(tags) do
+        updateListings[i] = addListing(assert(pools.get(tag)), i)
     end
 end
 
