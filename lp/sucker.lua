@@ -76,7 +76,10 @@ threads.register(function()
             session = sessions.get()
         end
         parallel.waitForAny(
-            function() sessions.endEvent.pull() end,
+            function()
+                sessions.endEvent.pull()
+                inventory.turtleMutex.lock().unlock()
+            end,
             suck
         )
         local guard = inventory.turtleMutex.lock()
