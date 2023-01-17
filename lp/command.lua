@@ -2,6 +2,7 @@ local sessions = require "lp.sessions"
 local threads = require "lp.threads"
 local pools   = require "lp.pools"
 local inventory = require "lp.inventory"
+local util = require "lp.util"
 local log = require "lp.log"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
@@ -164,6 +165,99 @@ local function handleRawdelta(user, args)
     session:transfer(amount, true)
 end
 
+local function arbHelper(pool, amt, otherPrice)
+    local buyPrice = math.ceil(amt * otherPrice)
+    local sellPrice = util.mFloor(pool:sellPrice(amt) - pool:sellFee(amt))
+    local profit = sellPrice - buyPrice
+    return buyPrice, sellPrice, profit
+end
+
+local function handleArb(user, args)
+    if #args < 2 then
+        tell(user, "Usage: \\lp arb <item> <price>")
+        return
+    end
+
+    local otherPrice = tonumber(args[#args])
+    if not otherPrice then
+        tell(user, ("Error: %q isn't a number"):format(args[#args]))
+        return
+    end
+
+    if otherPrice == 0 then
+        tell(
+            user,
+            "If someone is giving stuff away for free then any amount is profitable"
+        )
+        return
+    end
+
+    if otherPrice < 0 then
+        tell(
+            user,
+            "If someone is paying you to take their items, you don't even need to sell them back"
+        )
+        return
+    end
+
+    local label = table.concat(args, " ", 1, #args - 1)
+    local pool = pools.getByTag(label)
+    if pool then
+        if otherPrice >= pool:midPrice() then
+            tell(
+                user,
+                "There is no way to profit from arbitrage at current prices"
+            )
+            return
+        end
+
+        local initAmt = math.ceil(
+            math.sqrt(
+                pool.allocatedKrist * pool.allocatedItems / otherPrice
+            ) - pool.allocatedItems
+        )
+
+        local maxAmt, maxBuyPrice, maxSellPrice
+        local maxProfit = -math.huge
+        local amt = initAmt
+        while amt > 0 do
+            local buyPrice, sellPrice, profit = arbHelper(pool, amt, otherPrice)
+            if profit <= maxProfit then break end
+            maxAmt = amt
+            maxBuyPrice = buyPrice
+            maxSellPrice = sellPrice
+            maxProfit = maxProfit
+            amt = math.floor((buyPrice - 1) / otherPrice)
+        end
+
+        if maxProfit > 0 then
+            tell(
+                user,
+                (
+                    "If a shop is selling for %g, then:\n"
+                    .. "1. Buy %d items, paying %d\n"
+                    .. "2. Sell %d items here, earning %g\n"
+                    .. "3. Keep the difference of %g as profit"
+                ):format(
+                    otherPrice,
+                    maxAmt,
+                    maxBuyPrice,
+                    maxAmt,
+                    maxSellPrice,
+                    maxProfit
+                )
+            )
+        else
+            tell(
+                user,
+                "There is no way to profit from arbitrage at current prices"
+            )
+        end
+    else
+        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+    end
+end
+
 threads.register(function()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
@@ -171,6 +265,8 @@ threads.register(function()
         if command == "lp" then
             if args[1] == "start" then
                 handleStart(user, { unpack(args, 2) })
+            elseif args[1] == "arb" then
+                handleArb(user, { unpack(args, 2) })
             elseif args[1] == "buy" then
                 handleBuy(user, { unpack(args, 2) })
             elseif args[1] == "exit" then
