@@ -14,14 +14,20 @@ local function audit()
     local sessions = require "lp.sessions"
     local inventory = require "lp.inventory"
 
-    print("Starting new audit")
+    local f = fs.open("/audit.txt", "wb")
+    local function putStr(s)
+        print(s)
+        f.write(s .. "\n")
+    end
+
+    putStr("Starting new audit")
 
     local roundingFund = wallet.getRoundingFund()
-    print("Withdrawal rounding fund: " .. roundingFund .. " KST")
+    putStr("Withdrawal rounding fund: " .. roundingFund .. " KST")
 
     local kristTotal = roundingFund
     for user, account in sessions.accounts() do
-        print(("Allocation for %s: %g"):format(user, account.balance))
+        putStr(("Allocation for %s: %g"):format(user, account.balance))
         kristTotal = kristTotal + account.balance
     end
 
@@ -31,14 +37,14 @@ local function audit()
         local allocated = pool.allocatedItems
         local stored = inventory.inv.getCount(item, nbt)
         kristTotal = kristTotal + pool.allocatedKrist
-        print(("Pool %q: %d items (%d stored), %g KST"):format(
-            pool.label,
-            allocated,
-            stored,
-            pool.allocatedKrist
-        ))
+        putStr("Pool " .. pool.label)
+        putStr("\tItems: " .. allocated)
+        putStr("\tStored: " .. stored)
+        putStr("\tKST: " .. pool.allocatedKrist)
+        putStr("\tPrice: " .. pool.allocatedKrist / allocated)
+        putStr("\tk = " .. allocated * pool.allocatedKrist)
         if allocated > stored then
-            print("Storage doesn't meet allocation for pool ".. poolId)
+            putStr("Storage doesn't meet allocation for pool ".. poolId)
             ok = false
         end
     end
@@ -46,17 +52,17 @@ local function audit()
     local balance = wallet.fetchBalance()
     local unallocatedKrist = balance - kristTotal
     if unallocatedKrist >= 0 then
-        print(unallocatedKrist .. " unallocated KST")
+        putStr(unallocatedKrist .. " unallocated KST")
     else
-        print(("Wrong KST allocation: %g allocated, %g stored"):format(
+        putStr(("Wrong KST allocation: %g allocated, %g stored"):format(
             kristTotal,
             balance
         ))
         ok = false
     end
 
-    print("Audit done")
-    print("Status: " .. (ok and "SOLVENT" or "INSOLVENT"))
+    putStr("Audit done")
+    putStr("Status: " .. (ok and "SOLVENT" or "INSOLVENT"))
 end
 
 if subcommand == "mkpool" then
