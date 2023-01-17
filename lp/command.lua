@@ -226,7 +226,7 @@ local function handleArb(user, args)
             maxAmt = amt
             maxBuyPrice = buyPrice
             maxSellPrice = sellPrice
-            maxProfit = maxProfit
+            maxProfit = profit
             amt = math.floor((buyPrice - 1) / otherPrice)
         end
 
