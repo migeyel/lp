@@ -4,13 +4,16 @@ return function()
     local slot = nil
     local releaseEvent = event.register()
 
+    ---@class Mutex
     local mutex = {}
 
+    ---@return MutexGuard
     function mutex.lock()
         while slot do
             releaseEvent.pull()
         end
 
+        ---@class MutexGuard
         local guard = {}
 
         function guard.unlock()

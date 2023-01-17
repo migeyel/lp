@@ -8,10 +8,14 @@ local events = setmetatable({}, { __mode = "v" })
 local ids = setmetatable({}, { __mode = "k" })
 local n = 0
 
+---@return Event
 local function register()
     n = n + 1
     local id = "lb_event_" .. n
+
+    ---@class Event
     local event = {}
+
     events[id] = event
     ids[event] = id
 
@@ -26,6 +30,7 @@ local function register()
     return event
 end
 
+---@param filter string|nil
 local function pull(filter)
     if filter then
         local d = events[filter]
