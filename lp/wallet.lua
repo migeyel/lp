@@ -389,13 +389,11 @@ local function hearbeatWatchdog()
     end
     while true do
         if os.epoch("utc") - lastHeartbeat > SOCKET_MAX_IDLE_MS then
-            log:info("Socket idle limit reached, reconnecting")
-            pcall(socket.close)
-            socket = select(2, assert(jua.await(k.connect, state.pkey)))
-            local ok, e = jua.await(socket.subscribe, "ownTransactions", handleOwnTx)
-            assert(ok, e.message)
-            socket.on("keepalive", handleKeepalive)
-            lastHeartbeat = os.epoch("utc")
+            -- Not elegant at all, but I need to check for lost txs and I can't
+            -- send them becuase I don't sync with the other programs that are
+            -- sending stuff as well.
+            -- This reboots the system and recovers lost txs.
+            error("socket idle limit reached")
         end
         sleep(SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat)
     end
