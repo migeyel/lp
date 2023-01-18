@@ -38,7 +38,7 @@ end
 ---@param args string[]
 local function handleStart(user, args)
     if #args ~= 0 then
-        tell(user, "Usage: \\lp start")
+        tell(user, "Usage: `\\lp start`")
         return
     end
 
@@ -71,7 +71,7 @@ end
 ---@param args string[]
 local function handleExit(user, args)
     if #args ~= 0 then
-        tell(user, "Usage: \\lp exit")
+        tell(user, "Usage: `\\lp exit`")
         return
     end
 
@@ -88,7 +88,7 @@ end
 ---@param args string[]
 local function handleBuy(user, args)
     if #args < 2 then
-        tell(user, "Usage: \\lp buy <item> <amount>")
+        tell(user, "Usage: `\\lp buy <item> <amount>`")
         return
     end
 
@@ -145,7 +145,7 @@ end
 
 local function handleRawdelta(user, args)
     if #args < 1 then
-        tell(user, "Usage: \\lp rawput <amount>")
+        tell(user, "Usage: `\\lp rawdelta <amount>`")
         return
     end
 
@@ -174,7 +174,7 @@ end
 
 local function handleArb(user, args)
     if #args < 2 then
-        tell(user, "Usage: \\lp arb <item> <price>")
+        tell(user, "Usage: `\\lp arb <item> <price>`")
         return
     end
 
@@ -258,6 +258,49 @@ local function handleArb(user, args)
     end
 end
 
+local function handlePrice(user, args)
+    if #args < 2 then
+        tell(user, "Usage: `\\lp price <item> <amount>`")
+        return
+    end
+
+    local amount = tonumber(args[#args])
+    if not amount then
+        tell(user, ("Error: %q isn't a number"):format(args[#args]))
+        return
+    end
+
+    local label = table.concat(args, " ", 1, #args - 1)
+    local pool = pools.getByTag(label)
+    if pool then
+        if amount > 0 then
+            local price = util.mCeil(pool:buyPrice(amount) + pool:buyFee(amount))
+            tell(user, ("Buying %d of %q would cost you %g KST (%g KST/i)"):format(
+                amount,
+                label,
+                price,
+                util.mCeil(price / amount)
+            ))
+        elseif amount < 0 then
+            amount = -amount
+            local price = util.mFloor(pool:sellPrice(amount) - pool:sellFee(amount))
+            tell(user, ("Selling %d of %q would earn you %g KST (%g KST/i)"):format(
+                amount,
+                label,
+                price,
+                util.mFloor(price / amount)
+            ))
+        else
+            tell(user, ("The middle price of %q is %g KST"):format(
+                label,
+                pool:midPrice()
+            ))
+        end
+    else
+        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+    end
+end
+
 threads.register(function()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
@@ -267,6 +310,8 @@ threads.register(function()
                 handleStart(user, { unpack(args, 2) })
             elseif args[1] == "arb" then
                 handleArb(user, { unpack(args, 2) })
+            elseif args[1] == "price" then
+                handlePrice(user, { unpack(args, 2) })
             elseif args[1] == "buy" then
                 handleBuy(user, { unpack(args, 2) })
             elseif args[1] == "exit" then
