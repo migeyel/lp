@@ -144,6 +144,33 @@ end
 
 updateBottomBar()
 
+local listingFrames = {}
+
+local function openListingFrame(index)
+    if listingFrames[index] then
+        for _, v in pairs(listingFrames)do v:hide() end
+        listingFrames[index]:show()
+    end
+end
+
+local menubar = main:addMenubar("menubar")
+    :setPosition(1, "bottomBar.y - 1")
+    :setSize("parent.w", 1)
+    :setForeground(colors.white)
+    :onChange(function(self) openListingFrame(self:getItemIndex()) end)
+    :setSelectedItem(colors.white, colors.black)
+
+local function addListingFrame(label)
+    local listingFrame = main:addFrame()
+        :setPosition(1, "header.y + header.h")
+        :setSize("parent.w", "menubar.y - header.y + header.h - 2")
+        :setBackground(colors.white)
+        :hide()
+    menubar:addItem(label)
+    listingFrames[#listingFrames + 1] = listingFrame
+    return listingFrame
+end
+
 local header = main:addFrame("header")
     :setPosition(1, "topBar.y + topBar.h")
     :setSize("parent.w", 1)
@@ -170,11 +197,6 @@ for i, amount in ipairs(AMOUNTS_TO_QUOTE_PRICES_AT) do
         :setText("\215" .. amount)
         :setForeground(colors.white)
 end
-
-local listings = main:addFrame()
-    :setPosition(1, "header.y + header.h")
-    :setSize("parent.w", "parent.h - header.y - header.h - bottomBar.h + 1")
-    :setBackground(colors.white)
 
 local function listingPriceFg(p1, p2, affordable)
     if p1 > p2 then
@@ -212,10 +234,10 @@ local function listingPriceBg(p1, p2, index)
     end
 end
 
---- @param pool Pool
---- @param index number
-local function addListing(pool, index)
-    local listing = listings:addFrame()
+---@param pool Pool
+---@param index number
+local function addListing(listingFrame, pool, index)
+    local listing = listingFrame:addFrame()
         :setPosition(1, 2 * index - 1)
         :setSize("parent.w", 2)
         :setBackground(listingPriceBg(0, 0, index))
@@ -343,17 +365,27 @@ end
 
 local updateListings = {}
 
-do -- Add pools into the UI.
+local categories = {}
+for cat in pools.categories() do
+    categories[#categories + 1] = cat
+end
+table.sort(categories)
+
+for _, cat in ipairs(categories) do
     local tags = {}
-    for tag in pools.pools() do
+    for tag in pools.pools(cat) do
         tags[#tags + 1] = tag
     end
     table.sort(tags)
 
+    local lf = addListingFrame(cat)
     for i, tag in ipairs(tags) do
-        updateListings[i] = addListing(assert(pools.get(tag)), i)
+        updateListings[#updateListings + 1] = addListing(lf, assert(pools.get(tag)), i)
     end
 end
+
+menubar:selectItem(1)
+openListingFrame(1)
 
 threads.register(function()
     while true do

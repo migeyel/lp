@@ -14,7 +14,9 @@ local mFloor, mCeil, mRound = util.mFloor, util.mCeil, util.mRound
 
 ---@type table<string, Pool|nil>
 state.pools = state.pools or {}
-state.commit()
+
+---@type table<string, table<string, boolean>>
+state.categories = state.categories or {}
 
 local poolTags = {}
 for _, p in pairs(state.pools) do
@@ -75,13 +77,45 @@ local function create(label, itemName, nbt, numItems, numKrist, commit)
     return setmetatable(pool, { __index = Pool }), nil
 end
 
-local function pools()
-    local function pnext(_, k0)
-        local k1, p = next(state.pools, k0)
-        if p then return k1, setmetatable(p, { __index = Pool }) end
-    end
+local function categories()
+    return pairs(state.categories)
+end
 
-    return pnext, nil, nil
+---@param category string|nil
+local function pools(category)
+    local cat = state.categories[category]
+    if cat then
+        return function(_, k0)
+            local id = next(cat, k0)
+            if id then
+                local p = state.pools[id]
+                if p then return id, setmetatable(p, { __index = Pool }) end
+            end
+        end, nil, nil
+    else
+        return function(_, k0)
+            local k1, p = next(state.pools, k0)
+            if p then return k1, setmetatable(p, { __index = Pool }) end
+        end, nil, nil
+    end
+end
+
+---@param label string
+---@param commit boolean
+function Pool:toggleCategory(label, commit)
+    local cat = state.categories[label] or {}
+    if cat[self:id()] then
+        cat[self:id()] = nil
+    else
+        cat[self:id()] = true
+    end
+    if next(cat, nil) == nil then
+        state.categories[label] = nil
+    else
+        state.categories[label] = cat
+    end
+    if commit then state.commit() end
+    return cat[self:id()]
 end
 
 function Pool:id()
@@ -168,6 +202,7 @@ return {
     create = create,
     get = get,
     getByTag = getByTag,
+    categories = categories,
     pools = pools,
     commitWith = commitWith,
 }

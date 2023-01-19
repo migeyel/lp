@@ -117,6 +117,33 @@ elseif subcommand == "round" then
     local wallet = require "lp.wallet"
     local final = wallet.reallocateRounding(delta, true)
     print("Rounding fund now at " .. final)
+elseif subcommand == "categorize" then
+    local pool = assert(pools.getByTag(args[2] or input("Pool label? ")), "the pool doesn't exist")
+    local new = pool:toggleCategory(args[3] or input("Category? "), true)
+    if new then
+        print("Pool added to category")
+    else
+        print("Pool removed from category")
+    end
+elseif subcommand == "lost" then
+    local tracked = {}
+    for cat in pools.categories() do
+        for id in pools.pools(cat) do
+            tracked[id] = true
+        end
+    end
+    local untracked = {} ---@type table<string, Pool>
+    local nUntracked = 0
+    for id, pool in pools.pools() do
+        if not tracked[id] then
+            untracked[id] = pool
+            nUntracked = nUntracked + 1
+        end
+    end
+    print("Found " .. nUntracked .. " uncategorized pools:")
+    for _, pool in pairs(untracked) do
+        print("\t" .. pool.label)
+    end
 else
-    print("Valid subcommands: mkpool rmpool kst item realloc list info audit")
+    print("Valid subcommands: mkpool rmpool kst item realloc info list audit round categorize lost")
 end
