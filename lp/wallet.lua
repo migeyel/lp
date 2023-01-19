@@ -385,7 +385,7 @@ end
 
 local function hearbeatWatchdog()
     while not socket do
-        sleep(SOCKET_MAX_IDLE_MS)
+        sleep(SOCKET_MAX_IDLE_MS / 1000)
     end
     while true do
         if os.epoch("utc") - lastHeartbeat > SOCKET_MAX_IDLE_MS then
@@ -395,7 +395,7 @@ local function hearbeatWatchdog()
             -- This reboots the system and recovers lost txs.
             error("socket idle limit reached")
         end
-        sleep(SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat)
+        sleep((SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat) / 1000)
     end
 end
 
