@@ -36,15 +36,11 @@ log:info("Starting LP store")
 local err = nil
 local ok = xpcall(
     function()
-        local wallet = require "lp.wallet"
-        wallet.checkTotalout()
-        wallet.checkLastseen()
-
+        require "lp.wallet"
         require "lp.ui"
         require "lp.sucker"
         require "lp.logout"
         require "lp.command"
-
         local threads = require "lp.threads"
         parallel.waitForAll(unpack(threads.t))
     end,

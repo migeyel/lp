@@ -4,6 +4,7 @@ local config = require "lp.setup"
 local state = require "lp.state".open "lp.wallet"
 local util = require "lp.util"
 local log = require "lp.log"
+local event = require "lp.event"
 local threads = require "lp.threads"
 local jua = require "jua"
 local w = require "w"
@@ -343,8 +344,20 @@ local function fetchBalance()
     return ok and data.balance
 end
 
-local socket = nil
+local socketReadyEvent = event.register()
+local ownTxEvent = event.register()
+local keepaliveEvent = event.register()
+local walletReadyEvent = event.register()
+
 local lastHeartbeat = os.epoch("utc")
+
+local function keepaliveHandler()
+    while true do
+        keepaliveEvent.pull()
+        log:debug("Krist keepalive")
+        lastHeartbeat = os.epoch("utc")
+    end
+end
 
 ---@param ev TransactionEvent
 local function handleOwnTx(ev)
@@ -359,6 +372,11 @@ local function handleOwnTx(ev)
         tx.from,
         tx.metadata
     ))
+
+    if tx.id <= state.lastseen then
+        log:info("Skipping: already handled by lastseen")
+        return
+    end
 
     local sessions = require "lp.sessions"
     local cm = k.parseMeta(tx.metadata or "").meta
@@ -378,16 +396,9 @@ local function handleOwnTx(ev)
     end
 end
 
-local function handleKeepalive()
-    log:debug("Krist keepalive")
-    lastHeartbeat = os.epoch("utc")
-end
-
 local function hearbeatWatchdog()
-    while not socket do
-        sleep(SOCKET_MAX_IDLE_MS / 1000)
-    end
     while true do
+        sleep((SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat) / 1000)
         if os.epoch("utc") - lastHeartbeat > SOCKET_MAX_IDLE_MS then
             -- Not elegant at all, but I need to check for lost txs and I can't
             -- send them becuase I don't sync with the other programs that are
@@ -395,28 +406,66 @@ local function hearbeatWatchdog()
             -- This reboots the system and recovers lost txs.
             error("socket idle limit reached")
         end
-        sleep((SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat) / 1000)
     end
 end
 
 local function juaThread()
     jua.go(function()
-        socket = select(2, assert(jua.await(k.connect, state.pkey)))
+        local socket = select(2, assert(jua.await(k.connect, state.pkey)))
         log:info("Socket open")
-        local ok, e = jua.await(socket.subscribe, "ownTransactions", handleOwnTx)
-        assert(ok, e.message)
-        socket.on("keepalive", handleKeepalive)
+        socket.on("keepalive", keepaliveEvent.queue)
+        jua.await(socket.subscribe, "ownTransactions", ownTxEvent.queue)
+        log:info("Socket ready")
+        socketReadyEvent.queue()
     end)
 end
 
+local function safeListenerEntrypoint()
+    socketReadyEvent.pull()
+
+    local txQueue = {}
+    parallel.waitForAny(
+        -- Enqueue incoming txs for later handling. This doesn't return.
+        function()
+            while true do
+                txQueue[#txQueue + 1] = ownTxEvent.pull()
+            end
+        end,
+
+        -- Perform checks.
+        function()
+            checkTotalout()
+            checkLastseen()
+
+            -- Flush queue.
+            log:info("Flushing " .. #txQueue .. " transactions from queue")
+            while #txQueue > 0 do
+                handleOwnTx(table.remove(txQueue, 1))
+            end
+
+            -- We return with an empty queue, so waitForAny can't put anything
+            -- there. It exits empty.
+        end
+    )
+
+    log:info("Wallet ready")
+    walletReadyEvent.queue()
+
+    while true do
+        handleOwnTx(ownTxEvent.pull())
+    end
+end
+
 threads.register(juaThread)
+threads.register(keepaliveHandler)
 threads.register(hearbeatWatchdog)
+threads.register(safeListenerEntrypoint)
+
+threads.registerStartup(walletReadyEvent.pull)
 
 return {
     address = address,
     reallocateRounding = reallocateRounding,
-    checkTotalout = checkTotalout,
-    checkLastseen = checkLastseen,
     getRoundingFund = getRoundingFund,
     setPendingRefund = setPendingRefund,
     setPendingTx = setPendingTx,
