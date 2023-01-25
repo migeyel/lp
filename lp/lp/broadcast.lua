@@ -123,9 +123,11 @@ end
 threads.register(function()
     while true do
         sleep(30)
-        local message = collect()
-        local serialized = cjson.serialize(message)
-        message._signature = requestSignature(serialized)
-        modem.transmit(9773, os.getComputerID(), message)
+        pcall(function()
+            local message = collect()
+            local serialized = cjson.serialize(message)
+            message._signature = requestSignature(serialized)
+            modem.transmit(9773, os.getComputerID(), message)
+        end)
     end
 end)
