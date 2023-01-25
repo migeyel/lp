@@ -197,4 +197,5 @@ return {
     categories = categories,
     pools = pools,
     state = state,
+    FEE_RATE = FEE_RATE,
 }
