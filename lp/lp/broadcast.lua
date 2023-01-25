@@ -109,7 +109,7 @@ local function collect()
             },
             item = {
                 name = pool.item,
-                nbt = #pool.nbt ~= "NONE" and pool.nbt or nil,
+                nbt = pool.nbt ~= "NONE" and pool.nbt or nil,
                 displayName = pool.label,
             },
             stock = pool.allocatedItems,
