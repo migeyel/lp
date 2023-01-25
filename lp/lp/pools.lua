@@ -190,19 +190,11 @@ function Pool:midPriceUnrounded()
     return self.allocatedKrist / self.allocatedItems
 end
 
-local function commitWith(t, ...)
-    if select("#", ...) == 0 then
-        state:commitMany(unpack(t))
-    else
-        return select(1, ...)(t, select(2, ...))
-    end
-end
-
 return {
     create = create,
     get = get,
     getByTag = getByTag,
     categories = categories,
     pools = pools,
-    commitWith = commitWith,
+    state = state,
 }

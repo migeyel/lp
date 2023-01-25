@@ -331,14 +331,6 @@ local function checkLastseen()
     end
 end
 
-local function commitWith(t, ...)
-    if select("#", ...) == 0 then
-        state:commitMany(unpack(t))
-    else
-        return select(1, ...)(t, select(2, ...))
-    end
-end
-
 local function fetchBalance()
     local ok, data = assert(jua.await(k.address, address))
     return ok and data.balance
@@ -392,7 +384,7 @@ local function handleOwnTx(ev)
     else
         acct:transfer(tx.value, false)
         state.lastseen = tx.id
-        sessions.commitWith { state }
+        sessions.state:commitMany(state)
     end
 end
 
@@ -471,5 +463,5 @@ return {
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,
     fetchBalance = fetchBalance,
-    commitWith = commitWith,
+    state = state,
 }

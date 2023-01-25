@@ -210,7 +210,7 @@ function Session:tryBuy(pool, amount, commit)
     self.sellFees[pool:id()] = newSellFees
     pool:reallocItems(-amount, false)
     pool:reallocKst(priceNoFee, false)
-    if commit then pools.commitWith { state } end
+    if commit then pools.state:commitMany(state) end
 
     buyEvent.queue()
 
@@ -232,7 +232,7 @@ function Session:sell(pool, amount, commit)
     self.sellFees[pool:id()] = newSellFees
     pool:reallocItems(amount, false)
     pool:reallocKst(-priceNoFee, false)
-    if commit then pools.commitWith { state } end
+    if commit then pools.state:commitMany(state) end
 
     sellEvent.queue()
 end
@@ -249,17 +249,17 @@ function Session:close()
     wallet.setPendingTx(self.user .. "@" .. KRISTPAY_DOMAIN, amt,  {}, false)
     state.session = nil
     setmetatable(self, { __index = closedSessionError })
-    wallet.commitWith { state }
+    for id, fee in pairs(self.buyFees) do
+        local pool = pools.get(id)
+        if pool and fee > 0 then pool:reallocKst(fee, false) end
+    end
+    for id, fee in pairs(self.sellFees) do
+        local pool = pools.get(id)
+        if pool and fee > 0 then pool:reallocKst(fee, false) end
+    end
+    wallet.state:commitMany(state, pools.state)
     endEvent.queue(self.user, amt, rem)
     wallet.sendPendingTx()
-end
-
-local function commitWith(t, ...)
-    if select("#", ...) == 0 then
-        state:commitMany(unpack(t))
-    else
-        return select(1, ...)(t, select(2, ...))
-    end
 end
 
 return {
@@ -273,5 +273,5 @@ return {
     getAcctOrCreate = getAcctOrCreate,
     get = get,
     create = create,
-    commitWith = commitWith,
+    state = state,
 }
