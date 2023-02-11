@@ -34,7 +34,7 @@ end
 log:info("Starting LP store")
 
 local err = nil
-local ok = xpcall(
+local ok, e2 = xpcall(
     function()
         require "lp.wallet"
         require "lp.ui"
@@ -53,6 +53,8 @@ local ok = xpcall(
 
 if ok then
     report("the shop returned without throwing an error")
+else
+    report(tostring(e2))
 end
 
 if err ~= "Terminated" then
