@@ -46,7 +46,7 @@ local ok, err = xpcall(
         parallel.waitForAll(unpack(threads.t))
     end,
     function(e)
-        edt = e .. "\n" .. debug.traceback()
+        edt = tostring(e) .. "\n" .. (pcall(debug.traceback) or "")
     end
 )
 
