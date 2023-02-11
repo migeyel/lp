@@ -53,7 +53,7 @@ local ok, e2 = xpcall(
 
 if ok then
     report("the shop returned without throwing an error")
-else
+elseif not err then
     report(tostring(e2))
 end
 
