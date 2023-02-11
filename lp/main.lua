@@ -60,7 +60,7 @@ else
     report(err)
 end
 
-if err ~= "Terminated" then
+if not err:match("^Terminated") then
     log:info("Restarting 5 seconds")
     sleep(5)
     os.reboot()

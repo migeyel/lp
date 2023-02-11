@@ -12,7 +12,7 @@ local r = require "r"
 local k = require "k"
 
 local ROUNDING_BIAS = 0.01
-local SOCKET_MAX_IDLE_MS = 15000
+local SOCKET_MAX_IDLE_MS = 30000
 
 state.pendingout = state.pendingout or 0
 state.roundingFund = state.roundingFund or 0
