@@ -33,8 +33,8 @@ end
 
 log:info("Starting LP store")
 
-local err = nil
-local ok, e2 = xpcall(
+local edt = nil
+local ok, err = xpcall(
     function()
         require "lp.wallet"
         require "lp.ui"
@@ -46,15 +46,16 @@ local ok, e2 = xpcall(
         parallel.waitForAll(unpack(threads.t))
     end,
     function(e)
-        err = e
-        report(e .. "\n" .. debug.traceback())
+        edt = e .. "\n" .. debug.traceback()
     end
 )
 
 if ok then
     report("the shop returned without throwing an error")
-elseif not err then
-    report(tostring(e2))
+elseif edt then
+    report(edt)
+else
+    report(tostring(err))
 end
 
 if err ~= "Terminated" then
