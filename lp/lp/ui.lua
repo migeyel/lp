@@ -10,15 +10,11 @@ local mon = peripheral.find("monitor")
 
 local gray99 = colors.cyan
 local redlite = colors.blue
-local lightRed = colors.lime
 local greenlite = colors.brown
-local lightGreen = colors.orange
 
 mon.setPaletteColor(gray99, 200 / 255, 200 / 255, 200 / 255)
 mon.setPaletteColor(redlite, 255 / 255, 175 / 255, 175 / 255)
-mon.setPaletteColor(lightRed, 158 / 255, 116 / 255, 116 / 255)
 mon.setPaletteColor(greenlite, 184 / 255, 255 / 255, 176 / 255)
-mon.setPaletteColor(lightGreen, 127 / 255, 152 / 255, 124 / 255)
 
 local main = basalt.createFrame():setMonitor(peripheral.getName(mon), 0.5)
 
@@ -198,25 +194,13 @@ for i, amount in ipairs(AMOUNTS_TO_QUOTE_PRICES_AT) do
         :setForeground(colors.white)
 end
 
-local function listingPriceFg(p1, p2, affordable)
+local function listingPriceFg(p1, p2)
     if p1 > p2 then
-        if affordable then
-            return colors.red
-        else
-            return lightRed
-        end
+        return colors.red
     elseif p1 < p2 then
-        if affordable then
-            return colors.green
-        else
-            return lightGreen
-        end
+        return colors.green
     else
-        if affordable  then
-            return colors.black
-        else
-            return colors.lightGray
-        end
+        return colors.black
     end
 end
 
@@ -281,12 +265,12 @@ local function addListing(listingFrame, pool, index)
         local sellLabel = listing:addLabel()
             :setPosition("midframe.x + midframe.w + " .. offset, 1)
             :setText(("\164%g"):format(sellPrice))
-            :setForeground(listingPriceFg(0, 0, true))
+            :setForeground(listingPriceFg(0, 0))
 
         local avgSellLabel = listing:addLabel()
             :setPosition("midframe.x + midframe.w + " .. offset, 2)
             :setText(("\164%g/i"):format(avgSellPrice))
-            :setForeground(listingPriceFg(0, 0, true))
+            :setForeground(listingPriceFg(0, 0))
 
         local buyLabel = listing:addLabel()
             :setPosition("midframe.x - self.w - " .. offset, 1)
@@ -296,9 +280,8 @@ local function addListing(listingFrame, pool, index)
             :setPosition("midframe.x - self.w - " .. offset, 2)
             :setText(("\164%g/i"):format(avgBuyPrice))
 
-        local affordable = not session or session:balance() >= buyPrice
-        buyLabel:setForeground(listingPriceFg(0, 0, affordable))
-        avgBuyLabel:setForeground(listingPriceFg(0, 0, affordable))
+        buyLabel:setForeground(listingPriceFg(0, 0))
+        avgBuyLabel:setForeground(listingPriceFg(0, 0))
 
         quoteLabels[i] = {
             sell = sellLabel,
@@ -318,7 +301,7 @@ local function addListing(listingFrame, pool, index)
         listing:setBackground(bg)
         midframe:setBackground(bg)
 
-        local fg = listingPriceFg(unroundedPrice, newUnroundedPrice, true)
+        local fg = listingPriceFg(unroundedPrice, newUnroundedPrice)
         priceLabel:setText(("\164%g"):format(pool:midPrice()))
             :setForeground(fg)
 
@@ -336,17 +319,14 @@ local function addListing(listingFrame, pool, index)
             local avgBuyPrice = util.mCeil(buyPrice / amt)
             local avgSellPrice = util.mFloor(sellPrice / amt)
 
-            local affordable = not session or session:balance() >= buyPrice
-            local buyFg = listingPriceFg(unroundedPrice, newUnroundedPrice, affordable)
-            local sellFg = listingPriceFg(unroundedPrice, newUnroundedPrice, true)
             quoteLabels[i].sell:setText(("\164%g"):format(sellPrice))
-                :setForeground(sellFg)
+                :setForeground(fg)
             quoteLabels[i].avgSell:setText(("\164%g/i"):format(avgSellPrice))
-                :setForeground(sellFg)
+                :setForeground(fg)
             quoteLabels[i].buy:setText(("\164%g"):format(buyPrice))
-                :setForeground(buyFg)
+                :setForeground(fg)
             quoteLabels[i].avgBuy:setText(("\164%g/i"):format(avgBuyPrice))
-                :setForeground(buyFg)
+                :setForeground(fg)
         end
 
         if not secondIter then
@@ -372,15 +352,15 @@ end
 table.sort(categories)
 
 for _, cat in ipairs(categories) do
-    local tags = {}
-    for tag in pools.pools(cat) do
-        tags[#tags + 1] = tag
+    local ids = {}
+    for id in pools.pools(cat) do
+        ids[#ids + 1] = id
     end
-    table.sort(tags)
+    table.sort(ids)
 
     local lf = addListingFrame(cat)
-    for i, tag in ipairs(tags) do
-        updateListings[#updateListings + 1] = addListing(lf, assert(pools.get(tag)), i)
+    for i, id in ipairs(ids) do
+        updateListings[id] = addListing(lf, assert(pools.get(id)), i)
     end
 end
 
@@ -389,12 +369,11 @@ openListingFrame(1)
 
 threads.register(function()
     while true do
-        local e = event.pull()
-        local updateNeeded = e == sessions.buyEvent or e == sessions.sellEvent
-            or e == sessions.startEvent or e == sessions.endEvent or e == sessions.sessionBalChangeEvent
-        if updateNeeded then
-            for _, v in pairs(updateListings) do v() end
+        local e, id = event.pull()
+        if e == sessions.startEvent or e == sessions.endEvent or e == sessions.sessionBalChangeEvent then
             updateBottomBar()
+        elseif e == sessions.buyEvent or e == sessions.sellEvent or e == sessions.priceChangeEvent then
+            updateListings[id]()
         end
     end
 end)
