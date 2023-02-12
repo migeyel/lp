@@ -35,12 +35,15 @@ log:info("Starting LP store")
 
 local ok, err = xpcall(
     function()
+        require "lp.echest".recover()
         require "lp.wallet"
         require "lp.ui"
         require "lp.sucker"
         require "lp.logout"
         require "lp.command"
         require "lp.broadcast"
+        require "lp.rsession"
+        require "lp.frequencies"
         local threads = require "lp.threads"
         parallel.waitForAll(unpack(threads.t))
     end,

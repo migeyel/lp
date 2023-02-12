@@ -2,6 +2,8 @@ local sessions = require "lp.sessions"
 local threads = require "lp.threads"
 local pools   = require "lp.pools"
 local inventory = require "lp.inventory"
+local frequencies = require "lp.frequencies"
+local rsession = require "lp.rsession"
 local util = require "lp.util"
 local log = require "lp.log"
 
@@ -141,6 +143,115 @@ local function handleBuy(user, args)
     else
         tell(user, ("Error: The item pool %q doesn't exist"):format(label))
     end
+end
+
+---@param user string
+---@param args string[]
+local function handleToken(user, args)
+    if #args > 1 or #args == 1 and args[1] ~= "regenerate" then
+        tell(user, "Usages:\n \\lp token\n \\lp token regenerate")
+        return
+    end
+
+    local acct = sessions.getAcctOrCreate(user, true)
+
+    if args[1] == "regenerate" then
+        acct:setRemoteToken(util.toHex(util.randomBytes(16)), true)
+        rsession.updateListener(acct)
+        tell(user, ("Token regenerated successfully"))
+    elseif not acct.remoteToken then
+        acct:setRemoteToken(util.toHex(util.randomBytes(16)), true)
+        rsession.updateListener(acct)
+    end
+
+    local msg = (
+        "Your remote session token is `%s`. Never give this token to anyone."
+    ):format(acct.remoteToken)
+    tell(user, msg)
+end
+
+---@param user string
+---@param args string[]
+local function handleBalance(user, args)
+    if #args ~= 0 then
+        tell(user, "Usage: \\lp balance")
+        return
+    end
+
+    local acct = sessions.getAcctOrCreate(user, true)
+    tell(user, ("Your balance is %g KST"):format(acct.balance))
+end
+
+---@param user string
+---@param args string[]
+local function handleFrequency(user, args)
+    if #args > 1 or #args == 1 and args[1] ~= "buy" then
+        tell(user, "Usages:\n \\lp frequency\n \\lp frequency buy")
+        return
+    end
+
+    if #args == 0 then
+        local msg = (
+            "The current price for an allocated frequency is %g KST. You can" ..
+            " get one by using \\lp frequency buy"
+        ):format(sessions.ECHEST_ALLOCATION_PRICE)
+        tell(user, msg)
+        return
+    end
+
+
+    local session = sessions.get()
+    if not session or user ~= session.user then
+        tell(user, "Error: Start a session first with \\lp start")
+        return
+    end
+
+    local acct = session:account()
+    if acct.storageFrequency then
+        tell(user, "Error: You already own a frequency")
+        return
+    end
+
+    if acct.balance < sessions.ECHEST_ALLOCATION_PRICE then
+        local msg = (
+            "Error: You don't have the %g KST necessary to acquire a frequency"
+        ):format(sessions.ECHEST_ALLOCATION_PRICE)
+        tell(user, msg)
+        return
+    end
+
+    local nbt, frequency = frequencies.popFrequency()
+    if not nbt or not frequency then
+        tell(
+            user,
+            "Error: There are no frequencies for sale currently"
+        )
+        return
+    end
+
+    if not acct:allocFrequency(frequency, false) then
+        tell(user, "Error: Failed to allocate")
+        return
+    end
+    acct:transfer(-sessions.ECHEST_ALLOCATION_PRICE, true)
+
+    log:info(("%s has paid %d for frequency %d"):format(
+        user, sessions.ECHEST_ALLOCATION_PRICE, frequency
+    ))
+
+    local guard = inventory.turtleMutex.lock()
+    turtle.select(1)
+    turtle.drop()
+    inventory.inv.pushItems(
+        modem.getNameLocal(),
+        "sc-goodies:ender_storage",
+        1,
+        1,
+        nbt
+    )
+    turtle.select(1)
+    turtle.drop()
+    guard.unlock()
 end
 
 local function handleRawdelta(user, args)
@@ -318,6 +429,12 @@ threads.register(function()
                 handleExit(user, { unpack(args, 2) })
             elseif args[1] == "rawdelta" and etc.ownerOnly then
                 handleRawdelta(user, { unpack(args, 2) })
+            elseif args[1] == "balance" and etc.ownerOnly then
+                handleBalance(user, { unpack(args, 2) })
+            elseif args[1] == "token" and etc.ownerOnly then
+                handleToken(user, { unpack(args, 2) })
+            elseif args[1] == "frequency" and etc.ownerOnly then
+                handleFrequency(user, { unpack(args, 2) })
             elseif args[1] == "help" or args[1] == "" or args[1] == nil then
                 tell(
                     user,

@@ -32,7 +32,6 @@ local function suck()
                         item.name,
                         item.nbt
                     )
-                    require"cc.pretty".pretty_print(space)
                     if space >= item.count - amt then
                         inventory.inv.defrag()
                         amt = amt + inventory.inv.pullItems(
