@@ -152,7 +152,6 @@ end
 ---@param commit boolean
 function Session:transfer(amount, commit)
     self:account():transfer(amount, commit)
-    sessionBalChangeEvent.queue()
 end
 
 ---@param pool Pool
