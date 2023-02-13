@@ -372,7 +372,7 @@ threads.register(function()
         local e, id = event.pull()
         if e == sessions.startEvent or e == sessions.endEvent or e == sessions.sessionBalChangeEvent then
             updateBottomBar()
-        elseif e == sessions.buyEvent or e == sessions.sellEvent or e == pools.priceChangeEvent then
+        elseif e == pools.priceChangeEvent then
             updateListings[id]()
         end
     end

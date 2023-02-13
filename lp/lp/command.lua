@@ -319,7 +319,7 @@ local function handleAlloc(user, args)
         return
     end
 
-    amount = util.mFloor(math.max(0, math.min(65536, amount)))
+    amount = util.mFloor(amount)
     local label = table.concat(args, " ", 1, #args - 1)
     local pool = pools.getByTag(label)
     if pool then
