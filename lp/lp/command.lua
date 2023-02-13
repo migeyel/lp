@@ -331,7 +331,7 @@ local function handleAlloc(user, args)
             return
         end
         local trueAmount = session:account():transfer(-amount, false)
-        pool:reallocKst(trueAmount, false)
+        pool:reallocKst(-trueAmount, false)
         pools.state:commitMany(sessions.state)
     else
         tell(user, ("Error: The item pool %q doesn't exist"):format(label))
