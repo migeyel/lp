@@ -8,6 +8,7 @@
 local FEE_RATE = 0.05 -- TODO configure
 
 local state = require "lp.state".open "lp.pools"
+local event = require "lp.event"
 local util = require "lp.util"
 
 local mFloor, mCeil, mRound = util.mFloor, util.mCeil, util.mRound
@@ -17,6 +18,9 @@ state.pools = state.pools or {}
 
 ---@type table<string, table<string, boolean>>
 state.categories = state.categories or {}
+
+-- id: string
+local priceChangeEvent = event.register()
 
 local poolTags = {}
 for _, p in pairs(state.pools) do
@@ -128,6 +132,7 @@ function Pool:reallocKst(delta, commit)
     delta = math.max(delta, -self.allocatedKrist)
     self.allocatedKrist = self.allocatedKrist + delta
     if commit then state.commit() end
+    priceChangeEvent.queue(self:id())
 end
 
 ---@param delta number
@@ -146,6 +151,7 @@ function Pool:reallocBalanced(itemDelta, commit)
     self.allocatedItems = self.allocatedItems + itemDelta
     self.allocatedKrist = self.allocatedKrist + kDelta
     if commit then state.commit() end
+    priceChangeEvent.queue(self:id())
 end
 
 ---@param commit boolean
@@ -191,6 +197,7 @@ function Pool:midPriceUnrounded()
 end
 
 return {
+    priceChangeEvent = priceChangeEvent,
     create = create,
     get = get,
     getByTag = getByTag,

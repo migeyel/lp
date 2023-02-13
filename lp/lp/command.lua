@@ -256,7 +256,7 @@ end
 
 local function handleRawdelta(user, args)
     if #args < 1 then
-        tell(user, "Usage: `\\lp rawdelta <amount>`")
+        tell(user, "Usage: `^lp rawdelta <amount>`")
         return
     end
 
@@ -412,6 +412,43 @@ local function handlePrice(user, args)
     end
 end
 
+local function handleAlloc(user, args)
+    if #args < 2 then
+        tell(user, "Usage: `^lp alloc <item> <amount>`")
+        return
+    end
+
+    local session = sessions.get()
+    if not session or user:lower() ~= session.user then
+        tell(user, "Error: Start a session first with \\lp start")
+        return
+    end
+
+    local amount = tonumber(args[#args])
+    if not amount then
+        tell(user, ("Error: %q isn't a number"):format(args[#args]))
+        return
+    end
+
+    amount = util.mFloor(amount)
+    local label = table.concat(args, " ", 1, #args - 1)
+    local pool = pools.getByTag(label)
+    if pool then
+        if amount > session:balance() then
+            tell(user, "Error: You don't have the KST needed to reallocate")
+            return
+        elseif -amount >= pool.allocatedKrist then
+            tell(user, "Error: The pool doesn't have the KST needed to reallocate")
+            return
+        end
+        local trueAmount = session:account():transfer(-amount, false)
+        pool:reallocKst(-trueAmount, false)
+        pools.state:commitMany(sessions.state)
+    else
+        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+    end
+end
+
 threads.register(function()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
@@ -429,6 +466,8 @@ threads.register(function()
                 handleExit(user, { unpack(args, 2) })
             elseif args[1] == "rawdelta" and etc.ownerOnly then
                 handleRawdelta(user, { unpack(args, 2) })
+            elseif args[1] == "alloc" and etc.ownerOnly then
+                handleAlloc(user, { unpack(args, 2) })
             elseif args[1] == "balance" and etc.ownerOnly then
                 handleBalance(user, { unpack(args, 2) })
             elseif args[1] == "token" and etc.ownerOnly then

@@ -22,10 +22,10 @@ local startEvent = event.register()
 -- remaining: number
 local endEvent = event.register()
 
--- no params
+-- id: string
 local buyEvent = event.register()
 
--- no params
+-- id: string
 local sellEvent = event.register()
 
 -- user: string
@@ -195,7 +195,6 @@ end
 ---@param commit boolean
 function Session:transfer(amount, commit)
     self:account():transfer(amount, commit)
-    sessionBalChangeEvent.queue()
 end
 
 ---@param pool Pool
@@ -255,7 +254,7 @@ function Session:tryBuy(pool, amount, commit)
     pool:reallocKst(priceNoFee, false)
     if commit then pools.state:commitMany(state) end
 
-    buyEvent.queue()
+    buyEvent.queue(pool:id())
 
     return true
 end
@@ -277,7 +276,7 @@ function Session:sell(pool, amount, commit)
     pool:reallocKst(-priceNoFee, false)
     if commit then pools.state:commitMany(state) end
 
-    sellEvent.queue()
+    sellEvent.queue(pool:id())
 end
 
 function Session:close()
