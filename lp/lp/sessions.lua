@@ -26,10 +26,6 @@ local buyEvent = event.register()
 -- id: string
 local sellEvent = event.register()
 
--- TODO: maybe put these in the pool module?
--- id: string
-local priceChangeEvent = event.register()
-
 -- user: string
 local sessionBalChangeEvent = event.register()
 
@@ -255,17 +251,11 @@ function Session:close()
     setmetatable(self, { __index = closedSessionError })
     for id, fee in pairs(self.buyFees) do
         local pool = pools.get(id)
-        if pool and fee > 0 then
-            pool:reallocKst(fee, false)
-            priceChangeEvent.queue(id)
-        end
+        if pool and fee > 0 then pool:reallocKst(fee, false) end
     end
     for id, fee in pairs(self.sellFees) do
         local pool = pools.get(id)
-        if pool and fee > 0 then
-            pool:reallocKst(fee, false)
-            priceChangeEvent.queue(id)
-        end
+        if pool and fee > 0 then pool:reallocKst(fee, false) end
     end
     wallet.state:commitMany(state, pools.state)
     endEvent.queue(self.user, amt, rem)
@@ -277,7 +267,6 @@ return {
     endEvent = endEvent,
     buyEvent = buyEvent,
     sellEvent = sellEvent,
-    priceChangeEvent = priceChangeEvent,
     sessionBalChangeEvent = sessionBalChangeEvent,
     accounts = accounts,
     getAcct = getAcct,
