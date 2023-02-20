@@ -35,7 +35,7 @@ local function audit()
     for poolId, pool in pools.pools() do
         local item, nbt = poolId:match("([^~]+)~([^~]+)")
         local allocated = pool.allocatedItems
-        local stored = inventory.inv.getCount(item, nbt)
+        local stored = inventory.get().getCount(item, nbt)
         kristTotal = kristTotal + pool.allocatedKrist
         putStr("Pool " .. pool.label)
         putStr("\tItems: " .. allocated)

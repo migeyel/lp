@@ -23,18 +23,18 @@ local function suck()
             local session = sessions.get()
             local pool = pools.get(poolId)
             if pool and session then
-                local amt = inventory.inv.pullItems(
+                local amt = inventory.get().pullItems(
                     modem.getNameLocal(),
                     1
                 )
                 if amt < item.count then
-                    local space = inventory.inv.totalSpaceForItem(
+                    local space = inventory.get().totalSpaceForItem(
                         item.name,
                         item.nbt
                     )
                     if space >= item.count - amt then
-                        inventory.inv.defrag()
-                        amt = amt + inventory.inv.pullItems(
+                        inventory.get().defrag()
+                        amt = amt + inventory.get().pullItems(
                             modem.getNameLocal(),
                             1
                         )
@@ -51,7 +51,7 @@ local function suck()
                         session:sellPriceWithFee(pool, amt)
                     ))
                 else
-                    inventory.inv.pushItems(
+                    inventory.get().pushItems(
                         modem.getNameLocal(),
                         item.name,
                         item.count,
@@ -68,6 +68,7 @@ local function suck()
 end
 
 threads.register(function()
+    inventory.get()
     while true do
         local session = sessions.get()
         while not session do

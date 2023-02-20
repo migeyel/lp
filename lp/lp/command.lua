@@ -18,6 +18,8 @@ if not chatbox then
             print(("%s -> %s: %s"):format(name, recv, msg))
         end,
 
+        isConnected = function() return true end,
+
         hasCapability = function(cap)
             return ({ command = true, tell = true, read = true })[cap] or false
         end,
@@ -25,6 +27,10 @@ if not chatbox then
 end
 
 local modem = peripheral.find("modem")
+
+while not chatbox.isConnected() do
+    sleep()
+end
 
 if not chatbox.hasCapability("command") or not chatbox.hasCapability("tell") then
 	error("chatbox does not have the required permissions")
@@ -127,7 +133,7 @@ local function handleBuy(user, args)
                 local guard = inventory.turtleMutex.lock()
                 turtle.select(1)
                 turtle.drop()
-                local pushed = inventory.inv.pushItems(
+                local pushed = inventory.get().pushItems(
                     modem.getNameLocal(),
                     pool.item,
                     remaining,
@@ -450,6 +456,7 @@ local function handleAlloc(user, args)
 end
 
 threads.register(function()
+    inventory.get()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
         user = user:lower()
