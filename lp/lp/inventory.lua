@@ -18,8 +18,8 @@ local function get()
     local storage = { peripheral.find("inventory") }
     for i, v in pairs(storage) do storage[i] = peripheral.getName(v) end
     local linv = abstractInvLib(storage)
-    inv.refreshStorage()
-    inv.defrag()
+    linv.refreshStorage()
+    linv.defrag()
 
     log:info("Inventory ready")
     inv = linv
