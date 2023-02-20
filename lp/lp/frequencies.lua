@@ -46,7 +46,7 @@ for left = 0, 15 do
                 right
             )
 
-            if inventory.inv.getCount("sc-goodies:ender_storage", hash) > 0 then
+            if inventory.get().getCount("sc-goodies:ender_storage", hash) > 0 then
                 storedFrequencies[hash] = util.freq2Num(
                     2 ^ left,
                     2 ^ middle,

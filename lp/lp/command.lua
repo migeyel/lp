@@ -248,7 +248,7 @@ local function handleFrequency(user, args)
     local guard = inventory.turtleMutex.lock()
     turtle.select(1)
     turtle.drop()
-    inventory.inv.pushItems(
+    inventory.get().pushItems(
         modem.getNameLocal(),
         "sc-goodies:ender_storage",
         1,

@@ -98,7 +98,7 @@ local function preparePush(frequency, item, nbt, amount, slot)
 
     -- Push items to the temporary turtle slot 16.
     local turtleGuard = inventory.turtleMutex.lock()
-    local trueAmount = inventory.inv.pushItems(
+    local trueAmount = inventory.get().pushItems(
         turtleName,
         item,
         amount,
@@ -114,7 +114,7 @@ local function preparePush(frequency, item, nbt, amount, slot)
             log:info("Push rollback")
 
             -- Abort, pull items back to storage.
-            inventory.inv.pullItems(turtleName, 16)
+            inventory.get().pullItems(turtleName, 16)
 
             turtleGuard.unlock()
             echestGuard.unlock()
@@ -205,7 +205,7 @@ local function preparePull(frequency, slot, item, nbt)
             state:commitMany(...)
 
             -- Push items to storage.
-            inventory.inv.pullItems(turtleName, 16)
+            inventory.get().pullItems(turtleName, 16)
             turtleGuard.unlock()
 
             log:info("Pull complete")
@@ -253,7 +253,7 @@ local function recover()
     else
         if turtle.getItemCount(16) > 0 then
             -- Get the items back into storage.
-            inventory.inv.pullItems(turtleName, 16)
+            inventory.get().pullItems(turtleName, 16)
         else
             -- Nothing to do.
         end
