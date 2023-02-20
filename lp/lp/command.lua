@@ -16,6 +16,8 @@ if not chatbox then
             print(("%s -> %s: %s"):format(name, recv, msg))
         end,
 
+        isConnected = function() return true end,
+
         hasCapability = function(cap)
             return ({ command = true, tell = true, read = true })[cap] or false
         end,
@@ -23,6 +25,10 @@ if not chatbox then
 end
 
 local modem = peripheral.find("modem")
+
+while not chatbox.isConnected() do
+    sleep()
+end
 
 if not chatbox.hasCapability("command") or not chatbox.hasCapability("tell") then
 	error("chatbox does not have the required permissions")
