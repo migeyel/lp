@@ -125,7 +125,7 @@ local function handleBuy(user, args)
                 local guard = inventory.turtleMutex.lock()
                 turtle.select(1)
                 turtle.drop()
-                local pushed = inventory.inv.pushItems(
+                local pushed = inventory.get().pushItems(
                     modem.getNameLocal(),
                     pool.item,
                     remaining,
@@ -339,6 +339,7 @@ local function handleAlloc(user, args)
 end
 
 threads.register(function()
+    inventory.get()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
         user = user:lower()
