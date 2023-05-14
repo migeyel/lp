@@ -353,12 +353,50 @@ local function handleAlloc(ctx)
     end
 end
 
+---@param ctx CommandCallContext
+local function handleWhatsNew(ctx)
+    return ctx.reply(
+        {
+            text = "LP Recent Changes:",
+            color = cbb.colors.WHITE,
+        },
+        {
+            text = "\nMay 14th - ",
+            color = cbb.colors.BLUE,
+        },
+        {
+            text = "The new command parser no longer supports spaces in ",
+            color = cbb.colors.WHITE,
+        },
+        {
+            text = "\\lp buy",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = " et al. The new syntax is ",
+            color = cbb.colors.WHITE,
+        },
+        {
+            text = "\\lp buy \"Iron Ingot\" 1",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = ".",
+            color = cbb.colors.WHITE,
+        }
+    )
+end
+
 local root = cbb.literal("lp") "lp" {
     cbb.literal("help") "help" {
         help = "Provides this help message",
         execute = function(ctx)
             return cbb.sendHelpTopic(1, ctx)
         end,
+    },
+    cbb.literal("whatsnew") "whatsnew" {
+        help = "Reports new changes to the shop software",
+        execute = handleWhatsNew,
     },
     cbb.literal("start") "start" {
         help = "Starts a session",

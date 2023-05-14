@@ -297,10 +297,6 @@ local function execute(root, name, event)
         )
     end
 
-    for i = 1, #tokens do
-        print(i, tokens[i].value)
-    end
-
     local path = { root } ---@type CommandTreeNode[]
     local args = {} ---@type table<string, any>
     for i = 1, #tokens do
