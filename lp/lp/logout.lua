@@ -6,7 +6,7 @@ local log = require "lp.log"
 local SENSOR_SLEEP_PERIOD = 7
 local SLEEP_PERIODS_UNTIL_LOGOUT = 2
 local SENSOR_RADIUS_INFINITY_NORM = 5
-local SESSION_TIMEOUT_MS = 180000
+local SESSION_TIMEOUT_MS = 90000
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 
@@ -79,6 +79,16 @@ threads.register(function()
             log:info("Ending session due to inactivity")
             session:close()
         end
-        os.pullEvent() -- lazy
+        local ms = session.lastActive + SESSION_TIMEOUT_MS - os.epoch("utc")
+        local id = os.startTimer(ms / 1000)
+        while true do
+            local e, p1 = event.pull()
+            if e == sessions.endEvent then
+                os.cancelTimer(id)
+                break
+            elseif e == "timer" and p1 == id then
+                break
+            end
+        end
     end
 end)
