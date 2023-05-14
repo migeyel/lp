@@ -79,6 +79,36 @@ local number = makeBuilder {
     end,
 }
 
+---@param t Token
+---@return number?
+local function evaluate(t)
+    local pat = "^\27LuaQ\0\1\4\4\4\8\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\2\2\3\0\0"
+        .. "\0\1\0\0\0\30\0\0\1\30\0\128\0\1\0\0\0\3(........)\0\0\0\0\0\0\0\0"
+        .. "\0\0\0\0\0\0\0\0$"
+    local f = load("return " .. t.value, "")
+    if not f then return end
+    local m = string.dump(f, true):match(pat)
+    if not m then return end
+    return (("d"):unpack(m))
+end
+
+local numberExpr = makeBuilder {
+    desc = "a number expression",
+    tstr = "numexpr",
+    parse = evaluate,
+}
+
+local integerExpr = makeBuilder {
+    desc = "an integer expression",
+    tstr = "intexpr",
+    parse = function(t)
+        local d = evaluate(t)
+        if d and d % 1 == 0 then
+            return d
+        end
+    end,
+}
+
 local string = makeBuilder {
     desc = "a string",
     tstr = "string",
@@ -440,6 +470,8 @@ return {
     string = string,
     integer = integer,
     number = number,
+    numberExpr = numberExpr,
+    integerExpr = integerExpr,
     sendHelpTopic = sendHelpTopic,
     tell = tell,
     execute = execute,

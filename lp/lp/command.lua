@@ -380,6 +380,14 @@ local function handleWhatsNew(ctx)
             color = cbb.colors.BLUE,
         },
         {
+            text = "Commands now accept evaluated expressions as arguments.",
+            color = cbb.colors.WHITE,
+        },
+        {
+            text = "\nMay 14th - ",
+            color = cbb.colors.BLUE,
+        },
+        {
             text = "The new command parser no longer supports spaces in ",
             color = cbb.colors.WHITE,
         },
@@ -419,7 +427,7 @@ local root = cbb.literal("lp") "lp" {
     },
     cbb.literal("arb") "arb" {
         cbb.string "item" {
-            cbb.number "price" {
+            cbb.numberExpr "price" {
                 help = "Computes market arbitrage",
                 execute = handleArb,
             },
@@ -427,7 +435,7 @@ local root = cbb.literal("lp") "lp" {
     },
     cbb.literal("price") "price" {
         cbb.string "item" {
-            cbb.integer "amount" {
+            cbb.integerExpr "amount" {
                 help = "Queries an item's price",
                 execute = handlePrice,
             }
@@ -435,7 +443,7 @@ local root = cbb.literal("lp") "lp" {
     },
     cbb.literal("buy") "buy" {
         cbb.string "item" {
-            cbb.integer "amount" {
+            cbb.integerExpr "amount" {
                 help = "Buys an item",
                 execute = handleBuy,
             },
@@ -446,13 +454,13 @@ local root = cbb.literal("lp") "lp" {
         execute = handleExit,
     },
     cbb.literal("rawdelta") "rawdelta" {
-        cbb.number "amount" {
+        cbb.numberExpr "amount" {
             execute = handleRawdelta,
         }
     },
     cbb.literal("alloc") "alloc" {
         cbb.string "item" {
-            cbb.number "amount" {
+            cbb.numberExpr "amount" {
                 execute = handleAlloc,
             }
         }
