@@ -214,7 +214,7 @@ local colors = {
 
 ---@class FormatBlockEntry
 ---@field text string
----@field color ChatColor
+---@field color ChatColor?
 ---@field formats ChatFormat[]?
 
 ---@param user string
@@ -223,7 +223,7 @@ local colors = {
 local function tell(user, name, ...)
     local out = {}
     for i, v in ipairs({ ... }) do
-        local fmtstr = "&" .. v.color
+        local fmtstr = "&" .. (v.color or colors.WHITE)
         if v.formats then
             for _, fmt in ipairs(v.formats) do
                 fmtstr = fmtstr .. "&" .. fmt
