@@ -276,7 +276,7 @@ local function execute(root, name, event)
 
     ---@param ... FormatBlockEntry
     local function reply(...)
-        return tell(user, name, { ... })
+        return tell(user, name, ...)
     end
 
     local tokens, err = tokenize(input)
