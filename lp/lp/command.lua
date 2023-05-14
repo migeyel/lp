@@ -318,7 +318,7 @@ end
 local function handleAlloc(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
-    local amount = ctx.args.amoun ---@type number
+    local amount = ctx.args.amount ---@type number
 
     local session = sessions.get()
     if not session or ctx.user:lower() ~= session.user then
@@ -348,6 +348,21 @@ local function handleAlloc(ctx)
     else
         return ctx.reply({
             text = ("The item pool %q doesn't exist"):format(label),
+            color = cbb.colors.WHITE,
+        })
+    end
+end
+
+---@param ctx CommandCallContext
+local function handleKick(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local session = sessions.get()
+    if session then
+        session:close()
+        log:info("Session ended by kicking")
+    else
+        return ctx.reply({
+            text = "There is no session to terminate",
             color = cbb.colors.WHITE,
         })
     end
@@ -442,6 +457,9 @@ local root = cbb.literal("lp") "lp" {
             }
         }
     },
+    cbb.literal("kick") "kick" {
+        execute = handleKick,
+    }
 }
 
 threads.register(function()
