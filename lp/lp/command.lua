@@ -380,7 +380,16 @@ local function handleWhatsNew(ctx)
             color = cbb.colors.BLUE,
         },
         {
-            text = "Commands now accept evaluated expressions as arguments.",
+            text = "Commands now accept evaluated expressions as arguments. "
+                .. "Example: ",
+            color = cbb.colors.WHITE,
+        },
+        {
+            text = "\\lp price Wheat 9*64+1",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = ".",
             color = cbb.colors.WHITE,
         },
         {
