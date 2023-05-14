@@ -426,7 +426,7 @@ threads.register(function()
                 amt,
                 rem
             ),
-            color = cbb.coolors.WHITE,
+            color = cbb.colors.WHITE,
         })
     end
 end)
