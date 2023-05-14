@@ -4,6 +4,7 @@ local pools   = require "lp.pools"
 local inventory = require "lp.inventory"
 local util = require "lp.util"
 local log = require "lp.log"
+local cbb = require "lp.cbb"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -36,23 +37,13 @@ end
 
 local BOT_NAME = "LP Shop"
 
-local function tell(user, msg)
-    return chatbox.tell(user, msg, BOT_NAME)
-end
-
----@param user string
----@param args string[]
-local function handleStart(user, args)
-    if #args ~= 0 then
-        tell(user, "Usage: `\\lp start`")
-        return
-    end
-
+---@param ctx CommandCallContext
+local function handleStart(ctx)
     local entities = sensor.sense()
     local playerHere = false
     for _, e in pairs(entities) do
         local valid = e.key == "minecraft:player"
-            and e.name:lower() == user:lower()
+            and e.name:lower() == ctx.user:lower()
             and math.max(e.x, e.y, e.z) < SENSOR_RADIUS_INFINITY_NORM
         if valid then
             playerHere = true
@@ -61,67 +52,77 @@ local function handleStart(user, args)
     end
 
     if not playerHere then
-        local m = "Error: Please get near the shop. It's located at (x = 286, z = -248)"
-        tell(user, m)
-        return
+        return ctx.reply(
+            {
+                text = "Please get near the shop. It's located at "
+                    .. "(x = 286, z = -248). You can also use ",
+                color = cbb.colors.WHITE,
+            },
+            {
+                text = "\\warp lyqyd",
+                color = cbb.colors.GRAY,
+            },
+            {
+                text = ".",
+                color = cbb.colors.WHITE,
+            }
+        )
     end
 
-    if sessions.create(user, true) then
-        log:info("Started a session for " .. user)
+    if sessions.create(ctx.user, true) then
+        log:info("Started a session for " .. ctx.user)
     else
-        tell(user, "Error: Another session is already in place")
+        return ctx.reply({
+            text = "Another session is already in place",
+            color = cbb.colors.WHITE,
+        })
     end
 end
 
----@param user string
----@param args string[]
-local function handleExit(user, args)
-    if #args ~= 0 then
-        tell(user, "Usage: `\\lp exit`")
-        return
-    end
-
+---@param ctx CommandCallContext
+local function handleExit(ctx)
     local session = sessions.get()
-    if session and user:lower() == session.user then
+    if session and ctx.user:lower() == session.user then
         session:close()
         log:info("Session ended using command")
     else
-        tell(user, "Error: There is no session for you to exit")
+        return ctx.reply({
+            text = "There is no session for you to exit",
+            color = cbb.colors.WHITE,
+        })
     end
 end
 
----@param user string
----@param args string[]
-local function handleBuy(user, args)
-    if #args < 2 then
-        tell(user, "Usage: `\\lp buy <item> <amount>`")
-        return
-    end
+---@param ctx CommandCallContext
+local function handleBuy(ctx)
+    local label = ctx.args.item ---@type string
+    local amount = ctx.args.amount ---@type integer
 
     local session = sessions.get()
-    if not session or user:lower() ~= session.user then
-        tell(user, "Error: Start a session first with \\lp start")
-        return
-    end
-
-    local amount = tonumber(args[#args])
-    if not amount then
-        tell(user, ("Error: %q isn't a number"):format(args[#args]))
-        return
+    if not session or ctx.user:lower() ~= session.user then
+        return ctx.reply({
+            text = "Start a session first with \\lp start",
+            color = cbb.colors.WHITE,
+        })
     end
 
     amount = math.floor(math.max(0, math.min(65536, amount)))
-    local label = table.concat(args, " ", 1, #args - 1)
     local pool = pools.getByTag(label)
     if pool then
         local price = session:buyPriceWithFee(pool, amount)
         if price > session:balance() then
-            tell(user, ("Error: You don't have the %g KST necessary to buy this"):format(price))
-            return
+            return ctx.reply({
+                text = (
+                    "You don't have the %g KST necessary to buy this"
+                ):format(
+                    price
+                ),
+                color = cbb.colors.WHITE,
+            })
         end
         if session:tryBuy(pool, amount, true) then
             log:info(("%s bought %d units of %q for %g"):format(
-                user,
+                ctx.user,
                 amount,
                 pool.label,
                 price
@@ -145,29 +146,31 @@ local function handleBuy(user, args)
             end
         end
     else
-        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+        return ctx.reply({
+            text = ("The item pool %q doesn't exist"):format(label),
+            color = cbb.colors.WHITE,
+        })
     end
 end
 
-local function handleRawdelta(user, args)
-    if #args < 1 then
-        tell(user, "Usage: `^lp rawdelta <amount>`")
-        return
-    end
+---@param ctx CommandCallContext
+local function handleRawdelta(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local amount = ctx.args.amount ---@type number
 
     local session = sessions.get()
-    if not session or user:lower() ~= session.user then
-        tell(user, "Error: Start a session first with \\lp start")
-        return
+    if not session or ctx.user:lower() ~= session.user then
+        return ctx.reply({
+            text = "Start a session first with \\lp start",
+            color = cbb.colors.WHITE,
+        })
     end
 
-    local amount = tonumber(args[1])
-    if not amount then
-        tell(user, ("Error: %q isn't a number"):format(args[1]))
-        return
-    end
+    ctx.reply({
+        text = "Ok, " .. amount,
+        color = cbb.colors.WHITE,
+    })
 
-    tell(user, "Ok, " .. amount)
     session:transfer(amount, true)
 end
 
@@ -178,43 +181,35 @@ local function arbHelper(pool, amt, otherPrice)
     return buyPrice, sellPrice, profit
 end
 
-local function handleArb(user, args)
-    if #args < 2 then
-        tell(user, "Usage: `\\lp arb <item> <price>`")
-        return
-    end
-
-    local otherPrice = tonumber(args[#args])
-    if not otherPrice then
-        tell(user, ("Error: %q isn't a number"):format(args[#args]))
-        return
-    end
+---@param ctx CommandCallContext
+local function handleArb(ctx)
+    local otherPrice = ctx.args.price ---@type number
+    local label = ctx.args.item ---@type string
 
     if otherPrice == 0 then
-        tell(
-            user,
-            "If someone is giving stuff away for free then any amount is profitable"
-        )
-        return
+        return ctx.reply({
+            text = "If someone is giving stuff away for free then any amount "
+                .. "is profitable",
+            color = cbb.colors.WHITE,
+        })
     end
 
     if otherPrice < 0 then
-        tell(
-            user,
-            "If someone is paying you to take their items, you don't even need to sell them back"
-        )
-        return
+        return ctx.reply({
+            text = "If someone is paying you to take their items, you don't "
+                .. "even need to sell them back",
+            color = cbb.colors.WHITE,
+        })
     end
 
-    local label = table.concat(args, " ", 1, #args - 1)
     local pool = pools.getByTag(label)
     if pool then
         if otherPrice >= pool:midPrice() then
-            tell(
-                user,
-                "There is no way to profit from arbitrage at current prices"
-            )
-            return
+            return ctx.reply({
+                text = "There is no way to profit from arbitrage at current "
+                    .. "prices",
+                color = cbb.colors.WHITE,
+            })
         end
 
         local initAmt = math.ceil(
@@ -237,156 +232,201 @@ local function handleArb(user, args)
         end
 
         if maxProfit > 0 then
-            tell(
-                user,
-                (
-                    "If a shop is selling for %g, then:\n"
-                    .. "1. Buy %d items, paying %d\n"
-                    .. "2. Sell %d items here, earning %g\n"
-                    .. "3. Keep the difference of %g as profit"
-                ):format(
-                    otherPrice,
-                    maxAmt,
-                    maxBuyPrice,
-                    maxAmt,
-                    maxSellPrice,
-                    maxProfit
-                )
-            )
+            return ctx.reply({
+                text = (
+                        "If a shop is selling for %g, then:\n"
+                        .. "1. Buy %d items, paying %d\n"
+                        .. "2. Sell %d items here, earning %g\n"
+                        .. "3. Keep the difference of %g as profit"
+                    ):format(
+                        otherPrice,
+                        maxAmt,
+                        maxBuyPrice,
+                        maxAmt,
+                        maxSellPrice,
+                        maxProfit
+                    ),
+                color = cbb.colors.WHITE,
+            })
         else
-            tell(
-                user,
-                "There is no way to profit from arbitrage at current prices"
-            )
+            return ctx.reply({
+                text = "There is no way to profit from arbitrage at current "
+                    .. "prices",
+                color = cbb.colors.WHITE,
+            });
         end
     else
-        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+        return ctx.reply({
+            text = ("Error: The item pool %q doesn't exist"):format(label),
+            color = cbb.colors.WHITE,
+        })
     end
 end
 
-local function handlePrice(user, args)
-    if #args < 2 then
-        tell(user, "Usage: `\\lp price <item> <amount>`")
-        return
-    end
+---@param ctx CommandCallContext
+local function handlePrice(ctx)
+    local amount = ctx.args.amount ---@type integer
+    local label = ctx.args.item ---@type string
 
-    local amount = tonumber(args[#args])
-    if not amount then
-        tell(user, ("Error: %q isn't a number"):format(args[#args]))
-        return
-    end
-
-    local label = table.concat(args, " ", 1, #args - 1)
     local pool = pools.getByTag(label)
     if pool then
         if amount > 0 then
             local price = util.mCeil(pool:buyPrice(amount) + pool:buyFee(amount))
-            tell(user, ("Buying %d of %q would cost you %g KST (%g KST/i)"):format(
-                amount,
-                label,
-                price,
-                util.mCeil(price / amount)
-            ))
+            return ctx.reply({
+                text = (
+                    "Buying %d of %q would cost you %g KST (%g KST/i)"
+                ):format(
+                    amount,
+                    label,
+                    price,
+                    util.mCeil(price / amount)
+                ),
+                color = cbb.colors.WHITE,
+            })
         elseif amount < 0 then
             amount = -amount
             local price = util.mFloor(pool:sellPrice(amount) - pool:sellFee(amount))
-            tell(user, ("Selling %d of %q would earn you %g KST (%g KST/i)"):format(
-                amount,
-                label,
-                price,
-                util.mFloor(price / amount)
-            ))
+            return ctx.reply({
+                text = (
+                    "Selling %d of %q would earn you %g KST (%g KST/i)"
+                ):format(
+                    amount,
+                    label,
+                    price,
+                    util.mFloor(price / amount)
+                ),
+                color = cbb.colors.WHITE,
+            })
         else
-            tell(user, ("The middle price of %q is %g KST"):format(
-                label,
-                pool:midPrice()
-            ))
+            return ctx.reply({
+                text = ("The middle price of %q is %g KST"):format(
+                    label,
+                    pool:midPrice()
+                ),
+                color = cbb.colors.WHITE,
+            })
         end
     else
-        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+        return ctx.reply({
+            text = ("The pool %q doesn't exist"):format(label),
+            color = cbb.colors.WHITE,
+        })
     end
 end
 
-local function handleAlloc(user, args)
-    if #args < 2 then
-        tell(user, "Usage: `^lp alloc <item> <amount>`")
-        return
-    end
+---@param ctx CommandCallContext
+local function handleAlloc(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+    local amount = ctx.args.amoun ---@type number
 
     local session = sessions.get()
-    if not session or user:lower() ~= session.user then
-        tell(user, "Error: Start a session first with \\lp start")
-        return
-    end
-
-    local amount = tonumber(args[#args])
-    if not amount then
-        tell(user, ("Error: %q isn't a number"):format(args[#args]))
-        return
+    if not session or ctx.user:lower() ~= session.user then
+        return ctx.reply({
+            text = "Start a session first with \\lp start",
+            color = cbb.colors.WHITE,
+        })
     end
 
     amount = util.mFloor(amount)
-    local label = table.concat(args, " ", 1, #args - 1)
     local pool = pools.getByTag(label)
     if pool then
         if amount > session:balance() then
-            tell(user, "Error: You don't have the KST needed to reallocate")
-            return
+            return ctx.reply({
+                text = "You don't have the KST needed to reallocate",
+                color = cbb.colors.WHITE,
+            })
         elseif -amount >= pool.allocatedKrist then
-            tell(user, "Error: The pool doesn't have the KST needed to reallocate")
-            return
+            return ctx.reply({
+                text = "The pool doesn't have the KST needed to reallocate",
+                color = cbb.colors.WHITE,
+            })
         end
         local trueAmount = session:account():transfer(-amount, false)
         pool:reallocKst(-trueAmount, false)
         pools.state:commitMany(sessions.state)
     else
-        tell(user, ("Error: The item pool %q doesn't exist"):format(label))
+        return ctx.reply({
+            text = ("The item pool %q doesn't exist"):format(label),
+            color = cbb.colors.WHITE,
+        })
     end
 end
+
+local root = cbb.literal("lp") "lp" {
+    cbb.literal("help") "help" {
+        help = "Provides this help message",
+        execute = function(ctx)
+            return cbb.sendHelpTopic(1, ctx)
+        end,
+    },
+    cbb.literal("start") "start" {
+        help = "Starts a session",
+        execute = handleStart,
+    },
+    cbb.literal("arb") "arb" {
+        cbb.string "item" {
+            cbb.number "price" {
+                help = "Computes market arbitrage",
+                execute = handleArb,
+            },
+        },
+    },
+    cbb.literal("price") "price" {
+        cbb.string "item" {
+            cbb.integer "amount" {
+                help = "Queries an item's price",
+                execute = handlePrice,
+            }
+        }
+    },
+    cbb.literal("buy") "buy" {
+        cbb.string "item" {
+            cbb.integer "amount" {
+                help = "Buys an item",
+                execute = handleBuy,
+            },
+        },
+    },
+    cbb.literal("exit") "exit" {
+        help = "Exits a session",
+        execute = handleExit,
+    },
+    cbb.literal("rawdelta") "rawdelta" {
+        cbb.number "amount" {
+            execute = handleRawdelta,
+        }
+    },
+    cbb.literal("alloc") "alloc" {
+        cbb.string "item" {
+            cbb.number "amount" {
+                execute = handleAlloc,
+            }
+        }
+    },
+}
 
 threads.register(function()
     inventory.get()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
         user = user:lower()
-        if command == "lp" then
-            if args[1] == "start" then
-                handleStart(user, { unpack(args, 2) })
-            elseif args[1] == "arb" then
-                handleArb(user, { unpack(args, 2) })
-            elseif args[1] == "price" then
-                handlePrice(user, { unpack(args, 2) })
-            elseif args[1] == "buy" then
-                handleBuy(user, { unpack(args, 2) })
-            elseif args[1] == "exit" then
-                handleExit(user, { unpack(args, 2) })
-            elseif args[1] == "rawdelta" and etc.ownerOnly then
-                handleRawdelta(user, { unpack(args, 2) })
-            elseif args[1] == "alloc" and etc.ownerOnly then
-                handleAlloc(user, { unpack(args, 2) })
-            elseif args[1] == "help" or args[1] == "" or args[1] == nil then
-                tell(
-                    user,
-                    "Come check PG231's liquidity pool store at "
-                    .. "(x = 286, z = -248)! You can buy *and* sell items! "
-                    .. "Begin by using \\lp start"
-                )
-            else
-                tell(user, ("Error: Unknown subcommand %q"):format(
-                    ((args or {})[1] or ""):sub(1, 32)
-                ))
-            end
-        end
+        cbb.execute(root, BOT_NAME, { "command", user, command, args, etc })
     end
 end)
 
 threads.register(function()
     while true do
         local user, amt, rem = sessions.endEvent.pull()
-        local msg = (
-            "Your %d KST were transferred. The remaining %g are stored in "
-            .. "your account and will reappear in the next session."
-        ):format(amt, rem)
-        tell(user, msg)
+        cbb.tell(user, BOT_NAME, {
+            text = (
+                "Your %d KST were transferred. The remaining %g are stored "
+                    .. "in your account and will reappear in the next session."
+            ):format(
+                amt,
+                rem
+            ),
+            color = cbb.coolors.WHITE,
+        })
     end
 end)
