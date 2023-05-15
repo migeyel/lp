@@ -4,7 +4,7 @@ local pools   = require "lp.pools"
 local inventory = require "lp.inventory"
 local util = require "lp.util"
 local log = require "lp.log"
-local cbb = require "lp.cbb"
+local cbb = require "cbb"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
