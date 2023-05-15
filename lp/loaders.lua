@@ -1,5 +1,3 @@
-local ldir = fs.getDir(select(2, ...))
-
 local t = {}
 
 function t.basalt()
@@ -9,25 +7,24 @@ function t.basalt()
     h.close()
     local fn, e = load(s)
     if fn then
-        return fn, fs.combine(ldir, "basalt/init.lua")
+        return fn, "basalt/init.lua"
     else
         return nil, e
     end
 end
 
 local function mkUrlLoader(filename, url)
-    local path = fs.combine(ldir, filename)
     return function()
-        if not fs.exists(path) then
+        if not fs.exists(filename) then
             print("Fetch " .. filename)
             local h = http.get(url)
-            local f = fs.open(path, "wb")
+            local f = fs.open(filename, "wb")
             f.write(h.readAll())
             f.close()
             h.close()
         end
-        local fn, e = loadfile(path, nil, _ENV)
-        if fn then return fn, path else return nil, e end
+        local fn, e = loadfile(filename, nil, _ENV)
+        if fn then return fn, filename else return nil, e end
     end
 end
 
