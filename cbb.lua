@@ -392,13 +392,12 @@ local function execute(root, name, event)
             local prefix, suffix
             if #tokens >= 2 and i >= 2 then
                 prefix = "\n\\" .. cmd .. " " .. input:sub(1, tokens[i - 1].finish)
-                if i + 1 <= #tokens then
-                    suffix = input:sub(tokens[i + 1].start)
-                else
-                    suffix = ""
-                end
             else
                 prefix = "\n\\" .. cmd
+            end
+            if #tokens >= 2 and i + 1 <= #tokens then
+                suffix = input:sub(tokens[i + 1].start)
+            else
                 suffix = ""
             end
             return reply(
