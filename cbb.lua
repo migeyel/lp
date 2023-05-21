@@ -8,9 +8,46 @@ local expect = require "cc.expect"
 
 ---@alias FormatBlockEntries FormatBlockEntry[]
 
+--- An ingame user.
+--- @class IngameUser
+--- @field type "ingame"
+--- The player's UUID.
+--- @field uuid string
+--- The player's name, as it is displayed ingame.
+--- @field displayName string
+--- The rank of the player.
+--- @field group "default" | "admin"
+--- The player's preferred pronouns, as set by command, or nil if unset.
+--- @field pronouns string?
+--- The namespaced registry key of the player's world, or nil if unknonwn.
+--- @field world string?
+--- Whether the player is AFK.
+--- @field afk boolean
+--- Whether the player is some other player's alt account.
+--- @field alt boolean
+--- Whether the player is a bot account or not.
+--- @field bot boolean
+--- The current public tier of the player's supporter status. This value is:
+--- - 0 if the player is not a supporter or has opted out of showing their tag.
+--- - 1 for a Tier 1 supporter.
+--- - 2 for a Tier 2 supporter.
+--- - 3 for a Tier 3 supporter. 
+--- @field supporter number
+
+---@class ChatboxCommandEvent
+---@field event "command"
+---@field user IngameUser
+---@field command string
+---@field args string[]
+---@field ownerOnly boolean
+---@field time string
+
 ---@class CommandCallContext
 ---@field user string
 ---@field reply fun(...: FormatBlockEntry)
+---@field replyRaw fun(text: string)
+---@field replyMd fun(text: string)
+---@field data ChatboxCommandEvent
 ---@field args table<string, any>
 ---@field path CommandTreeNode[]
 
@@ -297,7 +334,7 @@ local function execute(root, name, event)
         error("Root node must be a literal", 2)
     end
 
-    local _, user, cmd, input = table.unpack(event)
+    local _, user, cmd, input, data = table.unpack(event)
     input = table.concat(input, " ")
 
     if cmd ~= root.type.literal then
@@ -307,6 +344,16 @@ local function execute(root, name, event)
     ---@param ... FormatBlockEntry
     local function reply(...)
         return tell(user, name, ...)
+    end
+
+    ---@param text string
+    local function replyRaw(text)
+        return chatbox.tell(user, text, name, nil, "format")
+    end
+
+    ---@param text string
+    local function replyMd(text)
+        return chatbox.tell(user, text, name, nil, "markdown")
     end
 
     local tokens, err = tokenize(input)
@@ -343,7 +390,7 @@ local function execute(root, name, event)
 
         if not passed then
             local prefix, suffix
-            if #tokens >= 2 then
+            if #tokens >= 2 and i >= 2 then
                 prefix = "\n\\" .. cmd .. " " .. input:sub(1, tokens[i - 1].finish)
                 if i + 1 <= #tokens then
                     suffix = input:sub(tokens[i + 1].start)
@@ -415,6 +462,9 @@ local function execute(root, name, event)
     ---@type CommandCallContext
     local ctx = {
         reply = reply,
+        replyRaw = replyRaw,
+        replyMd = replyMd,
+        data = data,
         args = args,
         path = path,
         user = user,
