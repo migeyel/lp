@@ -1,7 +1,8 @@
 local sessions = require "lp.sessions"
 local threads = require "lp.threads"
-local pools   = require "lp.pools"
+local pools = require "lp.pools"
 local inventory = require "lp.inventory"
+local event = require "lp.event"
 local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
@@ -26,14 +27,6 @@ if not chatbox then
 end
 
 local modem = peripheral.find("modem")
-
-while not chatbox.isConnected() do
-    sleep()
-end
-
-if not chatbox.hasCapability("command") or not chatbox.hasCapability("tell") then
-	error("chatbox does not have the required permissions")
-end
 
 local BOT_NAME = "LP Shop"
 
@@ -479,7 +472,35 @@ local root = cbb.literal("lp") "lp" {
     }
 }
 
+local ChatboxReadyEvent = event.register()
+
 threads.register(function()
+    log:info("Starting chatbox")
+
+    while not chatbox.isConnected() do
+        sleep()
+    end
+
+    if not chatbox.hasCapability("command") or not chatbox.hasCapability("tell") then
+        error("chatbox does not have the required permissions")
+    end
+
+    log:info("Chatbox ready")
+    ChatboxReadyEvent.queue()
+end)
+
+threads.register(function()
+    local timer = os.startTimer(20)
+
+    while true do
+        local e, id = event.pull()
+        if e == ChatboxReadyEvent then
+            break
+        elseif e == "timer" and id == timer then
+            error("chatbox did not connect after 20 seconds")
+        end
+    end
+
     inventory.get()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
@@ -489,6 +510,7 @@ threads.register(function()
 end)
 
 threads.register(function()
+    ChatboxReadyEvent.pull()
     while true do
         local user, amt, rem = sessions.endEvent.pull()
         cbb.tell(user, BOT_NAME, {
