@@ -30,7 +30,7 @@ local modem = peripheral.find("modem")
 
 local BOT_NAME = "LP Shop"
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleStart(ctx)
     local entities = sensor.sense()
     local playerHere = false
@@ -52,7 +52,7 @@ local function handleStart(ctx)
                 color = cbb.colors.WHITE,
             },
             {
-                text = "\\warp lyqyd",
+                text = "\\warp lp",
                 color = cbb.colors.GRAY,
             },
             {
@@ -65,38 +65,29 @@ local function handleStart(ctx)
     if sessions.create(ctx.user, true) then
         log:info("Started a session for " .. ctx.user)
     else
-        return ctx.reply({
-            text = "Another session is already in place",
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr("Another session is already in place")
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleExit(ctx)
     local session = sessions.get()
     if session and ctx.user:lower() == session.user then
         session:close()
         log:info("Session ended using command")
     else
-        return ctx.reply({
-            text = "There is no session for you to exit",
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr("There is no session for you to exit")
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleBuy(ctx)
     local label = ctx.args.item ---@type string
     local amount = ctx.args.amount ---@type integer
 
     local session = sessions.get()
     if not session or ctx.user:lower() ~= session.user then
-        return ctx.reply({
-            text = "Start a session first with \\lp start",
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr("Start a session first with \\lp start")
     end
 
     amount = math.floor(math.max(0, math.min(65536, amount)))
@@ -104,14 +95,11 @@ local function handleBuy(ctx)
     if pool then
         local price = session:buyPriceWithFee(pool, amount)
         if price > session:balance() then
-            return ctx.reply({
-                text = (
-                    "You don't have the %g KST necessary to buy this"
-                ):format(
+            return ctx.replyErr(
+                ("You don't have the %g KST necessary to buy this"):format(
                     price
-                ),
-                color = cbb.colors.WHITE,
-            })
+                )
+            )
         end
         if session:tryBuy(pool, amount, true) then
             log:info(("%s bought %d units of %q for %g"):format(
@@ -139,24 +127,21 @@ local function handleBuy(ctx)
             end
         end
     else
-        return ctx.reply({
-            text = ("The item pool %q doesn't exist"):format(label),
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleRawdelta(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local amount = ctx.args.amount ---@type number
 
     local session = sessions.get()
     if not session or ctx.user:lower() ~= session.user then
-        return ctx.reply({
-            text = "Start a session first with \\lp start",
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr("Start a session first with \\lp start")
     end
 
     ctx.reply({
@@ -174,7 +159,7 @@ local function arbHelper(pool, amt, otherPrice)
     return buyPrice, sellPrice, profit
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleArb(ctx)
     local otherPrice = ctx.args.price ---@type number
     local label = ctx.args.item ---@type string
@@ -183,7 +168,6 @@ local function handleArb(ctx)
         return ctx.reply({
             text = "If someone is giving stuff away for free then any amount "
                 .. "is profitable",
-            color = cbb.colors.WHITE,
         })
     end
 
@@ -191,7 +175,6 @@ local function handleArb(ctx)
         return ctx.reply({
             text = "If someone is paying you to take their items, you don't "
                 .. "even need to sell them back",
-            color = cbb.colors.WHITE,
         })
     end
 
@@ -201,7 +184,6 @@ local function handleArb(ctx)
             return ctx.reply({
                 text = "There is no way to profit from arbitrage at current "
                     .. "prices",
-                color = cbb.colors.WHITE,
             })
         end
 
@@ -239,24 +221,22 @@ local function handleArb(ctx)
                         maxSellPrice,
                         maxProfit
                     ),
-                color = cbb.colors.WHITE,
             })
         else
             return ctx.reply({
                 text = "There is no way to profit from arbitrage at current "
                     .. "prices",
-                color = cbb.colors.WHITE,
             });
         end
     else
-        return ctx.reply({
-            text = ("Error: The item pool %q doesn't exist"):format(label),
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handlePrice(ctx)
     local amount = ctx.args.amount ---@type integer
     local label = ctx.args.item ---@type string
@@ -274,7 +254,6 @@ local function handlePrice(ctx)
                     price,
                     util.mCeil(price / amount)
                 ),
-                color = cbb.colors.WHITE,
             })
         elseif amount < 0 then
             amount = -amount
@@ -288,7 +267,6 @@ local function handlePrice(ctx)
                     price,
                     util.mFloor(price / amount)
                 ),
-                color = cbb.colors.WHITE,
             })
         else
             return ctx.reply({
@@ -296,18 +274,17 @@ local function handlePrice(ctx)
                     label,
                     pool:midPrice()
                 ),
-                color = cbb.colors.WHITE,
             })
         end
     else
-        return ctx.reply({
-            text = ("The pool %q doesn't exist"):format(label),
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr(
+            ("The pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleAlloc(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
@@ -315,38 +292,31 @@ local function handleAlloc(ctx)
 
     local session = sessions.get()
     if not session or ctx.user:lower() ~= session.user then
-        return ctx.reply({
-            text = "Start a session first with \\lp start",
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr("Start a session first with \\lp start")
     end
 
     amount = util.mFloor(amount)
     local pool = pools.getByTag(label)
     if pool then
         if amount > session:balance() then
-            return ctx.reply({
-                text = "You don't have the KST needed to reallocate",
-                color = cbb.colors.WHITE,
-            })
+            return ctx.replyErr("You don't have the KST needed to reallocate")
         elseif -amount >= pool.allocatedKrist then
-            return ctx.reply({
-                text = "The pool doesn't have the KST needed to reallocate",
-                color = cbb.colors.WHITE,
-            })
+            return ctx.replyErr(
+                "The pool doesn't have the KST needed to reallocate"
+            )
         end
         local trueAmount = session:account():transfer(-amount, false)
         pool:reallocKst(-trueAmount, false)
         pools.state:commitMany(sessions.state)
     else
-        return ctx.reply({
-            text = ("The item pool %q doesn't exist"):format(label),
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleKick(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local session = sessions.get()
@@ -354,19 +324,15 @@ local function handleKick(ctx)
         session:close()
         log:info("Session ended by kicking")
     else
-        return ctx.reply({
-            text = "There is no session to terminate",
-            color = cbb.colors.WHITE,
-        })
+        return ctx.replyErr("There is no session to terminate")
     end
 end
 
----@param ctx CommandCallContext
+---@param ctx cbb.Context
 local function handleWhatsNew(ctx)
     return ctx.reply(
         {
             text = "LP Recent Changes:",
-            color = cbb.colors.WHITE,
         },
         {
             text = "\nMay 14th - ",
@@ -375,7 +341,6 @@ local function handleWhatsNew(ctx)
         {
             text = "Commands now accept evaluated expressions as arguments. "
                 .. "Example: ",
-            color = cbb.colors.WHITE,
         },
         {
             text = "\\lp price Wheat 9*64+1",
@@ -383,7 +348,6 @@ local function handleWhatsNew(ctx)
         },
         {
             text = ".",
-            color = cbb.colors.WHITE,
         },
         {
             text = "\nMay 14th - ",
@@ -391,7 +355,6 @@ local function handleWhatsNew(ctx)
         },
         {
             text = "The new command parser no longer supports spaces in ",
-            color = cbb.colors.WHITE,
         },
         {
             text = "\\lp buy",
@@ -399,7 +362,6 @@ local function handleWhatsNew(ctx)
         },
         {
             text = " et al. The new syntax is ",
-            color = cbb.colors.WHITE,
         },
         {
             text = "\\lp buy \"Iron Ingot\" 1",
@@ -407,7 +369,6 @@ local function handleWhatsNew(ctx)
         },
         {
             text = ".",
-            color = cbb.colors.WHITE,
         }
     )
 end
