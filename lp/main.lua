@@ -40,7 +40,6 @@ local ok, err = xpcall(
         require "lp.sucker"
         require "lp.logout"
         require "lp.command"
-        require "lp.broadcast"
         local threads = require "lp.threads"
         parallel.waitForAll(unpack(threads.t))
     end,
