@@ -44,7 +44,6 @@ end
 ---@class Account
 ---@field username string
 ---@field balance number
----@field remoteToken string|nil
 ---@field storageFrequency number|nil
 local Account = {}
 
@@ -78,13 +77,6 @@ local function accounts()
     end
 
     return anext, nil, nil
-end
-
----@param token string
----@param commit boolean
-function Account:setRemoteToken(token, commit)
-    self.remoteToken = token
-    if commit then state.commit() end
 end
 
 ---@param frequency number
