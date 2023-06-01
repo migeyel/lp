@@ -136,98 +136,57 @@ local function handleBuy(ctx)
     end
 end
 
----@param user string
----@param args string[]
-local function handleToken(user, args)
-    if #args > 1 or #args == 1 and args[1] ~= "regenerate" then
-        tell(user, "Usages:\n \\lp token\n \\lp token regenerate")
-        return
-    end
-
-    local acct = sessions.getAcctOrCreate(user, true)
-
-    if args[1] == "regenerate" then
-        acct:setRemoteToken(util.toHex(util.randomBytes(16)), true)
-        rsession.updateListener(acct)
-        tell(user, ("Token regenerated successfully"))
-    elseif not acct.remoteToken then
-        acct:setRemoteToken(util.toHex(util.randomBytes(16)), true)
-        rsession.updateListener(acct)
-    end
-
-    local msg = (
-        "Your remote session token is `%s`. Never give this token to anyone."
-    ):format(acct.remoteToken)
-    tell(user, msg)
+---@param ctx cbb.Context
+local function handleBalance(ctx)
+    local acct = sessions.getAcctOrCreate(ctx.user, true)
+    return ctx.reply({
+        text = ("Your balance is %g KST"):format(acct.balance)
+    })
 end
 
----@param user string
----@param args string[]
-local function handleBalance(user, args)
-    if #args ~= 0 then
-        tell(user, "Usage: \\lp balance")
-        return
-    end
-
-    local acct = sessions.getAcctOrCreate(user, true)
-    tell(user, ("Your balance is %g KST"):format(acct.balance))
-end
-
----@param user string
----@param args string[]
-local function handleFrequency(user, args)
-    if #args > 1 or #args == 1 and args[1] ~= "buy" then
-        tell(user, "Usages:\n \\lp frequency\n \\lp frequency buy")
-        return
-    end
-
-    if #args == 0 then
-        local msg = (
+---@param ctx cbb.Context
+local function handleFreqQuery(ctx)
+    return ctx.reply({
+        text = (
             "The current price for an allocated frequency is %g KST. You can" ..
             " get one by using \\lp frequency buy"
         ):format(sessions.ECHEST_ALLOCATION_PRICE)
-        tell(user, msg)
-        return
-    end
+    })
+end
 
-
+---@param ctx cbb.Context
+local function handleFreqBuy(ctx)
     local session = sessions.get()
-    if not session or user ~= session.user then
-        tell(user, "Error: Start a session first with \\lp start")
-        return
+
+    if not session or ctx.user ~= session.user then
+        return ctx.replyErr("Start a session first with \\lp start")
     end
 
     local acct = session:account()
     if acct.storageFrequency then
-        tell(user, "Error: You already own a frequency")
-        return
+        return ctx.replyErr("You already own a frequency")
     end
 
     if acct.balance < sessions.ECHEST_ALLOCATION_PRICE then
-        local msg = (
-            "Error: You don't have the %g KST necessary to acquire a frequency"
-        ):format(sessions.ECHEST_ALLOCATION_PRICE)
-        tell(user, msg)
-        return
+        return ctx.replyErr(
+            (
+                "You don't have the %g KST necessary to acquire a frequency"
+            ):format(sessions.ECHEST_ALLOCATION_PRICE)
+        )
     end
 
     local nbt, frequency = frequencies.popFrequency()
     if not nbt or not frequency then
-        tell(
-            user,
-            "Error: There are no frequencies for sale currently"
-        )
-        return
+        return ctx.replyErr("There are no frequencies for sale currently")
     end
 
     if not acct:allocFrequency(frequency, false) then
-        tell(user, "Error: Failed to allocate")
-        return
+        return ctx.replyErr("Failed to allocate")
     end
     acct:transfer(-sessions.ECHEST_ALLOCATION_PRICE, true)
 
     log:info(("%s has paid %d for frequency %d"):format(
-        user, sessions.ECHEST_ALLOCATION_PRICE, frequency
+        ctx.user, sessions.ECHEST_ALLOCATION_PRICE, frequency
     ))
 
     local guard = inventory.turtleMutex.lock()
@@ -245,6 +204,7 @@ local function handleFrequency(user, args)
     guard.unlock()
 end
 
+---@param ctx cbb.Context
 local function handleRawdelta(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local amount = ctx.args.amount ---@type number
@@ -525,6 +485,18 @@ local root = cbb.literal("lp") "lp" {
     cbb.literal("exit") "exit" {
         help = "Exits a session",
         execute = handleExit,
+    },
+    cbb.literal("frequency") "frequency" {
+        help = "Displays ender storage frequency information",
+        execute = handleFreqQuery,
+        cbb.literal("buy") "buy" {
+            help = "Buys an ender storage frequency",
+            execute = handleFreqBuy,
+        },
+    },
+    cbb.literal("balance") "balance" {
+        help = "Displays your balance",
+        execute = handleBalance,
     },
     cbb.literal("rawdelta") "rawdelta" {
         cbb.numberExpr "amount" {
