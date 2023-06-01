@@ -1,14 +1,17 @@
 local sessions = require "lp.sessions"
 local threads = require "lp.threads"
+local event = require "lp.event"
 local log = require "lp.log"
 
-local SENSOR_SLEEP_PERIOD = 15
+local SENSOR_SLEEP_PERIOD = 7
+local SLEEP_PERIODS_UNTIL_LOGOUT = 2
 local SENSOR_RADIUS_INFINITY_NORM = 5
-local SESSION_TIMEOUT_MS = 180000
+local SESSION_TIMEOUT_MS = 90000
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 
--- Not being near the shop
+local sessionPlayerAbsentEvent = event.register()
+
 threads.register(function()
     while true do
         sleep(SENSOR_SLEEP_PERIOD)
@@ -16,7 +19,7 @@ threads.register(function()
         session = sessions.get()
         if session then
             entities = sensor.sense()
-            session = sessions.get() -- sense() yields
+            session = sessions.get() -- .sense() yields
         end
         if session then
             local playerHere = false
@@ -29,12 +32,36 @@ threads.register(function()
                     break
                 end
             end
-            if playerHere then
-                log:debug("Player is still here, letting the session continue")
-            else
-                log:info("Ending session due to player not being present")
-                session:close()
+            if not playerHere then
+                sessionPlayerAbsentEvent.queue()
+            end
+        end
+    end
+end)
+
+-- Not being near the shop
+threads.register(function()
+    while true do
+        local session = sessions.get()
+        while not session do
+            sessions.startEvent.pull()
+            session = sessions.get()
+        end
+        local awayCounter = 0
+        while true do
+            local e = event.pull()
+            if e == sessions.endEvent then
                 break
+            elseif e == sessionPlayerAbsentEvent then
+                awayCounter = awayCounter + 1
+                if awayCounter >= SLEEP_PERIODS_UNTIL_LOGOUT then
+                    session = sessions.get() -- .pull() yields
+                    if session then
+                        log:info("Ending session due to player absence")
+                        session:close()
+                    end
+                    break
+                end
             end
         end
     end
@@ -46,16 +73,22 @@ threads.register(function()
         local session = sessions.get()
         while not session do
             sessions.startEvent.pull()
-            session = sessions.get()
+            session = sessions.get() -- .pull() yields
         end
-        while os.epoch("utc") - session.lastActive < SESSION_TIMEOUT_MS do
-            local ms = SESSION_TIMEOUT_MS - os.epoch("utc") + session.lastActive
-            sleep(ms / 1000)
-        end
-        session = sessions.get()
-        if session then
+        if os.epoch("utc") - session.lastActive >= SESSION_TIMEOUT_MS then
             log:info("Ending session due to inactivity")
             session:close()
+        end
+        local ms = session.lastActive + SESSION_TIMEOUT_MS - os.epoch("utc")
+        local id = os.startTimer(ms / 1000)
+        while true do
+            local e, p1 = event.pull()
+            if e == sessions.endEvent then
+                os.cancelTimer(id)
+                break
+            elseif e == "timer" and p1 == id then
+                break
+            end
         end
     end
 end)

@@ -116,7 +116,7 @@ local sessionAddressLabel = sectionOngoingBottomFrame:addLabel()
     :setSize(nil, 1)
 
 sectionOngoingBottomFrame:addLabel("deposits")
-    :setText(("Deposit at %s"):format(wallet.address))
+    :setText("Deposit at lp.kst")
     :setForeground(colors.lightGray)
     :setBackground(colors.gray)
     :setPosition("parent.w - self.w - 1", 3)
