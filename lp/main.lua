@@ -43,7 +43,6 @@ local ok, err = xpcall(
         require "lp.sucker"
         require "lp.logout"
         require "lp.command"
-        require "lp.broadcast"
         require "lp.rsession"
         require "lp.frequencies"
         local threads = require "lp.threads"
