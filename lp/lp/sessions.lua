@@ -8,14 +8,24 @@ local wallet = require "lp.wallet"
 
 ---@type table<string, Account|nil>
 state.accounts = state.accounts or {}
+
+---@type table<string, string>
+local uuidIndex = {}
+
+for _, v in pairs(state.accounts) do
+    if v.uuid then
+        uuidIndex[v.username] = v.uuid
+    end
+end
+
 ---@type Session|nil
 state.session = nil
 state.commit()
 
--- user: string
+-- uuid: string
 local startEvent = event.register()
 
--- user: string
+-- uuid: string
 -- transferred: number
 -- remaining: number
 local endEvent = event.register()
@@ -26,7 +36,7 @@ local buyEvent = event.register()
 -- id: string
 local sellEvent = event.register()
 
--- user: string
+-- uuid: string
 local sessionBalChangeEvent = event.register()
 
 local mFloor, mCeil = util.mFloor, util.mCeil
@@ -34,29 +44,41 @@ local mFloor, mCeil = util.mFloor, util.mCeil
 ---@class Account
 ---@field username string
 ---@field balance number
+---@field uuid string
 local Account = {}
 
+---Sets the username for an account, creating it if needeed.
 ---@param username string
+---@param uuid string
 ---@param commit boolean
----@return Account
-local function getAcctOrCreate(username, commit)
-    local acct = state.accounts[username]
-    if not acct then
-        acct = {
-            username = username,
-            balance = 0,
-        }
-        state.accounts[username] = acct
-        if commit then state.commit() end
+local function setAcct(uuid, username, commit)
+    local acct = state.accounts[uuid] or {
+        balance = 0,
+        uuid = uuid,
+    }
+
+    if acct.username then
+        uuidIndex[acct.username] = nil
+        uuidIndex[username] = uuid
     end
-    return setmetatable(acct, { __index = Account })
+
+    acct.username = username
+
+    if commit then state.commit() end
+end
+
+---@param uuid string
+---@return Account?
+local function getAcctByUuid(uuid)
+    local acct = state.accounts[uuid]
+    if acct then return setmetatable(acct, { __index = Account }) end
 end
 
 ---@param username string
----@return Account | nil
-local function getAcct(username)
-    local acct = state.accounts[username]
-    if acct then return setmetatable(acct, { __index = Account }) end
+---@return Account?
+local function getAcctByUsername(username)
+    local uuid = uuidIndex[username]
+    if uuid then return getAcctByUuid(uuid) end
 end
 
 local function accounts()
@@ -78,7 +100,7 @@ function Account:transfer(delta, commit)
     if commit then state.commit() end
     local session = state.session
     if session and session:account() == self then
-       sessionBalChangeEvent.queue(self.username)
+       sessionBalChangeEvent.queue(self.uuid)
     end
     return delta, self.balance
 end
@@ -92,14 +114,13 @@ function Account:tryTransfer(delta, commit)
     if commit then state.commit() end
     local session = state.session
     if session and session:account() == self then
-       sessionBalChangeEvent.queue(self.username)
+       sessionBalChangeEvent.queue(self.uuid)
     end
     return true
 end
 
 ---@class Session
----@field user string
----@field balance number
+---@field uuid string
 ---@field lastActive number
 ---@field buyFees table
 ---@field sellFees table
@@ -112,18 +133,19 @@ local function get()
     if s then return setmetatable(s, { __index = Session }) end
 end
 
+---@param uuid string
 ---@param username string
 ---@param commit boolean
----@return Session|nil
-local function create(username, commit)
+---@return Session?
+local function create(uuid, username, commit)
     if get() then return end
 
     username = username:lower()
 
-    getAcctOrCreate(username, false)
+    setAcct(uuid, username, false)
 
     state.session = {
-        user = username,
+        uuid = uuid,
         lastActive = os.epoch("utc"),
         buyFees = {},
         sellFees = {},
@@ -131,7 +153,7 @@ local function create(username, commit)
 
     if commit then state.commit() end
 
-    startEvent.queue(username)
+    startEvent.queue(uuid)
 
     return setmetatable(state.session, { __index = Session })
 end
@@ -140,7 +162,7 @@ end
 function Session:account()
     -- This doesn't error because create() makes the account whenever a new
     -- session starts.
-    return assert(state.accounts[self.user])
+    return assert(getAcctByUuid(self.uuid))
 end
 
 ---@return number
@@ -245,7 +267,8 @@ function Session:close()
     local balFloor = math.floor(acct.balance)
     local delta, rem = acct:transfer(-balFloor, false)
     local amt = -delta
-    wallet.setPendingTx(self.user .. "@" .. KRISTPAY_DOMAIN, amt,  {}, false)
+    local receiver = self.uuid:gsub("-", "") .. "@" .. KRISTPAY_DOMAIN
+    wallet.setPendingTx(receiver, amt,  {}, false)
     state.session = nil
     setmetatable(self, { __index = closedSessionError })
     for id, fee in pairs(self.buyFees) do
@@ -257,7 +280,7 @@ function Session:close()
         if pool and fee > 0 then pool:reallocKst(fee, false) end
     end
     wallet.state:commitMany(state, pools.state)
-    endEvent.queue(self.user, amt, rem)
+    endEvent.queue(self.uuid, amt, rem)
     wallet.sendPendingTx()
 end
 
@@ -268,8 +291,8 @@ return {
     sellEvent = sellEvent,
     sessionBalChangeEvent = sessionBalChangeEvent,
     accounts = accounts,
-    getAcct = getAcct,
-    getAcctOrCreate = getAcctOrCreate,
+    getAcctByUsername = getAcctByUsername,
+    getAcctByUuid = getAcctByUuid,
     get = get,
     create = create,
     state = state,

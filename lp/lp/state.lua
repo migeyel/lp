@@ -47,7 +47,7 @@ else
 end
 
 local function open(index)
-    local out = copy(mainState[index] or {})
+    local out = copy(mainState[index] or {}) or {}
 
     local mtIdx = {
         _index = index,

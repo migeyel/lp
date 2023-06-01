@@ -129,8 +129,8 @@ function updateBottomBar()
         sectionOngoingBottomLabel
             :setText(("Balance: \164%g"):format(session:balance()))
         sessionAddressLabel
-            :setText(session.user)
-            :setSize(#session.user, 1)
+            :setText(session:account().username)
+            :setSize(#session:account().username, 1)
             :setPosition("exitLabel.x - self.w - 1", 2)
     else
         sectionStartBottomFrame:show()

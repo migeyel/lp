@@ -26,8 +26,8 @@ local function audit()
     putStr("Withdrawal rounding fund: " .. roundingFund .. " KST")
 
     local kristTotal = roundingFund
-    for user, account in sessions.accounts() do
-        putStr(("Allocation for %s: %g"):format(user, account.balance))
+    for _, account in sessions.accounts() do
+        putStr(("Allocation for %s: %g"):format(account.username, account.balance))
         kristTotal = kristTotal + account.balance
     end
 
