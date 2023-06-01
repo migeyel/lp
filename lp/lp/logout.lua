@@ -25,7 +25,7 @@ threads.register(function()
             local playerHere = false
             for _, e in pairs(entities) do
                 local valid = e.key == "minecraft:player"
-                    and e.name:lower() == session.user:lower()
+                    and e.id == session.uuid
                     and math.max(e.x, e.y, e.z) < SENSOR_RADIUS_INFINITY_NORM
                 if valid then
                     playerHere = true

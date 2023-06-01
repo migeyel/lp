@@ -372,8 +372,10 @@ local function handleOwnTx(ev)
 
     local sessions = require "lp.sessions"
     local cm = k.parseMeta(tx.metadata or "").meta
+    local useruuid = cm.useruuid or ""
     local username = (cm.username or ""):lower()
-    local acct = sessions.getAcct(username)
+    local acct = sessions.getAcctByUuid(useruuid)
+              or sessions.getAcctByUsername(username)
     if not acct then
         log:error("No account " .. username)
         local err = { error = "Account " .. username .. " not found" }

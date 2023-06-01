@@ -37,7 +37,7 @@ local function handleStart(ctx)
     local playerHere = false
     for _, e in pairs(entities) do
         local valid = e.key == "minecraft:player"
-            and e.name:lower() == ctx.user:lower()
+            and e.id == ctx.data.user.uuid
             and math.max(e.x, e.y, e.z) < SENSOR_RADIUS_INFINITY_NORM
         if valid then
             playerHere = true
@@ -63,7 +63,7 @@ local function handleStart(ctx)
         )
     end
 
-    if sessions.create(ctx.user, true) then
+    if sessions.create(ctx.data.user.uuid, ctx.user, true) then
         log:info("Started a session for " .. ctx.user)
     else
         return ctx.replyErr("Another session is already in place")
@@ -73,7 +73,7 @@ end
 ---@param ctx cbb.Context
 local function handleExit(ctx)
     local session = sessions.get()
-    if session and ctx.user:lower() == session.user then
+    if session and ctx.data.user.uuid == session.uuid then
         session:close()
         log:info("Session ended using command")
     else
@@ -87,7 +87,7 @@ local function handleBuy(ctx)
     local amount = ctx.args.amount ---@type integer
 
     local session = sessions.get()
-    if not session or ctx.user:lower() ~= session.user then
+    if not session or ctx.data.user.uuid ~= session.uuid then
         return ctx.replyErr("Start a session first with \\lp start")
     end
 
@@ -209,7 +209,7 @@ local function handleRawdelta(ctx)
     local amount = ctx.args.amount ---@type number
 
     local session = sessions.get()
-    if not session or ctx.user:lower() ~= session.user then
+    if not session or ctx.data.user.uuid ~= session.uuid then
         return ctx.replyErr("Start a session first with \\lp start")
     end
 
@@ -360,7 +360,7 @@ local function handleAlloc(ctx)
     local amount = ctx.args.amount ---@type number
 
     local session = sessions.get()
-    if not session or ctx.user:lower() ~= session.user then
+    if not session or ctx.data.user.uuid ~= session.uuid then
         return ctx.replyErr("Start a session first with \\lp start")
     end
 
@@ -554,8 +554,8 @@ end)
 threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
-        local user, amt, rem = sessions.endEvent.pull()
-        cbb.tell(user, BOT_NAME, {
+        local uuid, amt, rem = sessions.endEvent.pull()
+        cbb.tell(uuid, BOT_NAME, {
             text = (
                 "Your %d KST were transferred. The remaining %g are stored "
                     .. "in your account and will reappear in the next session."
