@@ -63,6 +63,7 @@ local function setAcct(uuid, username, commit)
     end
 
     acct.username = username
+    state.accounts[uuid] = acct
 
     if commit then state.commit() end
 end
