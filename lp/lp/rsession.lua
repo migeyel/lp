@@ -83,7 +83,7 @@ local function handleBuy(id, rch, uuid, buy)
         return sendMissingParameter(id, rch, uuid, "maxPerItem")
     end
 
-    local account = sessions.getAcct(uuid) -- TODO
+    local account = sessions.getAcctByUuid(uuid)
     if not account then
         return send(rch, uuid, proto.Response.serialize {
             id = id,
@@ -163,7 +163,7 @@ local function handleBuy(id, rch, uuid, buy)
 
     -- preparePush() yields, so the account may have been deleted in the
     -- meantime by another thread. Check that it hasn't.
-    account = sessions.getAcct(uuid) -- TODO
+    account = sessions.getAcctByUuid(uuid)
     if not account then
         pushTransfer.rollback() --[[yield]] account, pool = nil, nil
         return send(rch, uuid, proto.Response.serialize {
@@ -287,7 +287,7 @@ local function handleSell(id, rch, uuid, sell)
         return sendMissingParameter(id, rch, uuid, "minPerItem")
     end
 
-    local account = sessions.getAcct(uuid) -- TODO
+    local account = sessions.getAcctByUuid(uuid)
     if not account then
         return send(rch, uuid, proto.Response.serialize {
             id = id,
@@ -377,7 +377,7 @@ local function handleSell(id, rch, uuid, sell)
 
     -- preparePull() yields, so the account may have been deleted in the
     -- meantime by another thread. Check that it hasn't.
-    account = sessions.getAcct(uuid) -- TODO
+    account = sessions.getAcctByUuid(uuid)
     if not account then
         local ok, dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
         return send(rch, uuid, proto.Response.serialize {

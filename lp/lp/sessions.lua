@@ -135,7 +135,8 @@ end
 ---@param commit boolean
 function Account:withdraw(amount, commit)
     local delta, rem = self:transfer(-amount, false)
-    wallet.setPendingTx(self.username .. "@" .. KRISTPAY_DOMAIN, -delta,  {}, false)
+    local receiver = self.uuid .. "@" .. KRISTPAY_DOMAIN
+    wallet.setPendingTx(receiver, -delta,  {}, false)
     if commit then wallet.state:commitMany(state) end
     return -delta, rem
 end
@@ -321,6 +322,7 @@ return {
     sellEvent = sellEvent,
     sessionBalChangeEvent = sessionBalChangeEvent,
     accounts = accounts,
+    setAcct = setAcct,
     getAcctByUsername = getAcctByUsername,
     getAcctByUuid = getAcctByUuid,
     get = get,

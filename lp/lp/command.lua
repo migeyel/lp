@@ -137,7 +137,7 @@ end
 
 ---@param ctx cbb.Context
 local function handleBalance(ctx)
-    local acct = sessions.getAcctOrCreate(ctx.user, true)
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     return ctx.reply({
         text = ("Your balance is %g KST"):format(acct.balance)
     })
