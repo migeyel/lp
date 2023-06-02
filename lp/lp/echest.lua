@@ -97,7 +97,7 @@ local function preparePush(frequency, item, nbt, amount, slot)
     end
 
     -- Push items to the temporary turtle slot 16.
-    local turtleGuard = inventory.turtleMutex.lock()
+    local turtleGuard = inventory.turtleMutexes[16].lock()
     local trueAmount = inventory.get().pushItems(
         turtleName,
         item,
@@ -168,7 +168,7 @@ local function preparePull(frequency, slot, item, nbt)
     log:info("Reverse push committed")
 
     -- Pull the item.
-    local turtleGuard = inventory.turtleMutex.lock()
+    local turtleGuard = inventory.turtleMutexes[16].lock()
     local amount = echest.pushItems(turtleName, slot, nil, 16)
 
     -- Check that we got what we expected.
@@ -235,7 +235,7 @@ end
 
 local function recover()
     local echestGuard = echestMutex.lock()
-    local turtleGuard = inventory.turtleMutex.lock()
+    local turtleGuard = inventory.turtleMutexes[16].lock()
 
     log:info("Starting recovery")
 

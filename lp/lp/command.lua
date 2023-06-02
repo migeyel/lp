@@ -111,7 +111,8 @@ local function handleBuy(ctx)
             ))
             local remaining = amount
             while remaining > 0 do
-                local guard = inventory.turtleMutex.lock()
+                local guard1 = inventory.turtleMutexes[1].lock()
+                local guard2 = inventory.turtleMutex.lock()
                 turtle.select(1)
                 turtle.drop()
                 local pushed = inventory.get().pushItems(
@@ -123,7 +124,8 @@ local function handleBuy(ctx)
                 )
                 turtle.select(1)
                 turtle.drop()
-                guard.unlock()
+                guard1.unlock()
+                guard2.unlock()
                 remaining = remaining - pushed
             end
         end
@@ -188,7 +190,8 @@ local function handleFreqBuy(ctx)
         ctx.user, sessions.ECHEST_ALLOCATION_PRICE, frequency
     ))
 
-    local guard = inventory.turtleMutex.lock()
+    local guard1 = inventory.turtleMutexes[1].lock()
+    local guard2 = inventory.turtleMutex.lock()
     turtle.select(1)
     turtle.drop()
     inventory.get().pushItems(
@@ -200,7 +203,8 @@ local function handleFreqBuy(ctx)
     )
     turtle.select(1)
     turtle.drop()
-    guard.unlock()
+    guard1.unlock()
+    guard2.unlock()
 end
 
 ---@param ctx cbb.Context

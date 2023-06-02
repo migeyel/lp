@@ -41,7 +41,11 @@ local function get()
     return linv
 end
 
+local turtleMutexes = {}
+for i = 1, 16 do turtleMutexes[i] = mutex() end
+
 return {
     get = get,
-    turtleMutex = mutex(),
+    turtleMutexes = turtleMutexes, -- Inventory operations
+    turtleMutex = mutex(), -- Changing the selected slot
 }
