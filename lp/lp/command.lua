@@ -145,10 +145,10 @@ local function handleInfo(ctx)
                 text = ("Pool %q\n"):format(pool.label),
             },
             {
-                text = ("- Item Name %s\n"):format(pool.item),
+                text = ("- Item Name: %s\n"):format(pool.item),
             },
             {
-                text = ("- Item NBT %s\n"):format(pool.nbt),
+                text = ("- Item NBT: %s\n"):format(pool.nbt),
             },
             {
                 text = ("- Allocated Items: %g\n"):format(pool.allocatedItems),
