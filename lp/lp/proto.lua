@@ -114,7 +114,8 @@ proto.FailureReason = lproto.message {
         parameter = lproto.bytes (1);
     } (10);
 
-    -- The account has no ender storage frequency associated with it.
+    -- The account has no ender storage frequency associated with it. Or the
+    -- associated frequency has changed mid-operation.
     noFrequency = lproto.message {} (11);
 
     -- The stored balance wasn't enough to execute a buy order.
@@ -153,36 +154,21 @@ proto.FailureReason = lproto.message {
         slot = lproto.uint53 (1);
     } (6);
 
-    -- Note: This failure reason always happens together with another one.
-    -- During execution, another failure has triggered a storage pull, which
-    -- means transferring an item stack into some given slot. However, when this
-    -- was attempted, the slot was filled with something else. As a result, the
-    -- transfer resorted to filling in any slots that it could find. Any items
-    -- that couldn't be returned were destroyed.
-    blockedPull = lproto.message {
-        -- The slot that was expected to be empty, but wasn't.
-        originalSlot = lproto.uint53 (1);
-
-        -- The number of items that couldn't be returned, and were destroyed
-        -- instead.
-        destroyedAmount = lproto.uint53 (2);
+    -- When buying, the slot changed mid-operation, causing an unexpected race
+    -- condition. THE BUY ORDER WAS STILL EXECUTED, but ITEMS MAY HAVE BEEN
+    -- DESTROYED as a result.
+    buyImproperRace = lproto.message {
+        order = proto.BuyOrderExecution (1);
+        dumped = lproto.uint53 (2);
+        slot = lproto.uint53 (3);
     } (7);
 
-    -- When selling, the slot specified initially contained an item, but it was
-    -- replaced by another one mid-transfer. The sell order was cancelled and
-    -- no Krist was credited.
-    sellTransferMismatch = lproto.message {
-        expectedItem = lproto.bytes (2);
-        expectedNbt = lproto.bytes (3);
+    -- When selling, the slot changed mid-operation, causing an unexpected race
+    -- condition. ITEMS MAY HAVE BEEN DESTROYED as a result.
+    sellImproperRace = lproto.message {
+        dumped = lproto.uint53 (1);
+        slot = lproto.uint53 (2);
     } (8);
-
-    -- When buying, the slot specified was empty, but it was filled by an item
-    -- mid-transfer. The buy order succeeded and the balance has been deducted,
-    -- but the item was placed somewhere else (see blockedPull).
-    buyTransferBlocked = lproto.message {
-        -- The successful buy order.
-        order = proto.BuyOrderExecution (3);
-    } (9);
 }
 
 -- A response from the LP server to a client.
@@ -218,11 +204,6 @@ proto.Response = lproto.message {
     } (1);
 
     -- A request has failed.
-    -- This DOES NOT mean that the order wasn't executed or that further action
-    -- isn't needed. There are failure edge cases which *also execute orders*.
-    -- For information about these edge cases, see:
-    -- - FailureReason.buyTransferBlocked
-    -- - FailureReason.blockedPull
     failure = proto.FailureReason (2);
 }
 

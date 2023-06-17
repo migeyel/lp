@@ -35,36 +35,23 @@ local function setFrequency(f)
     end
 end
 
---- Pulls a number of items into an ender storage following a plan:
---- - At first, try to pull everything into the given slot.
---- - If that fails, try to pull everything into any slot.
---- - If that fails, pull everything into the dump chest.
+--- Pulls a number of items into an ender storage, dumping anything it can't
+--- transfer.
 ---@param amount number How many items are in the 16th turtle slot to be sent.
----@param slot number Which slot to try and send the items into initially.
----@return boolean ok Whether the transfer succeeded in the first try.
+---@param slot number Which slot to try to send the items into.
 ---@return number dumpAmt How many items were dumped.
 ---@async
-local function pullPullDump(slot, amount)
+local function tryPull(slot, amount)
     -- Pull into the desired slot.
-    local firstPullAmt = echest.pullItems(turtleName, 16, nil, slot)
-    if firstPullAmt >= amount then
-        return true, 0
-    end
+    local pullAmt = echest.pullItems(turtleName, 16, nil, slot)
 
-    -- Pull into any space available.
-    local secondPullAmt = 0
-    repeat
-        local pulled = echest.pullItems(turtleName, 16)
-        secondPullAmt = secondPullAmt + pulled
-    until pulled == 0
-
-    -- Pull into the dump chest.
+    -- Pull remaining items into the dump chest.
     local dumpAmt = 0
-    while firstPullAmt + secondPullAmt + dumpAmt < amount do
+    while pullAmt + dumpAmt < amount do
         dumpAmt = dumpAmt + dumpchest.pullItems(turtleName, 16)
     end
 
-    return false, dumpAmt
+    return dumpAmt
 end
 
 ---@param frequency number
@@ -120,7 +107,6 @@ local function preparePush(frequency, item, nbt, amount, slot)
             echestGuard.unlock()
         end,
 
-        ---@return boolean ok Whether the transfer was to the specified slot.
         ---@return number dumpAmt How many items were dumped.
         ---@nodiscard
         ---@async
@@ -131,7 +117,7 @@ local function preparePush(frequency, item, nbt, amount, slot)
             state.PENDING = { slot = slot }
             state:commitMany(...)
 
-            local ok, dumpAmt = pullPullDump(slot, trueAmount)
+            local dumpAmt = tryPull(slot, trueAmount)
 
             turtleGuard.unlock()
 
@@ -142,7 +128,7 @@ local function preparePush(frequency, item, nbt, amount, slot)
             log:info("Push complete")
             echestGuard.unlock()
 
-            return ok, dumpAmt
+            return dumpAmt
         end,
     }
 end
@@ -151,8 +137,7 @@ end
 ---@param slot number The slot to pull from.
 ---@param item string The item id to check after pulling.
 ---@param nbt string The item NBT to check after pulling.
----@return "OK"|"MISMATCH"|"MISMATCH_BLOCKED" # The transfer status.
----@return table|nil|number # The table, the number of dumped items, or nil.
+---@return table|number # The table, or the number of dumped items.
 ---@nodiscard
 ---@async
 local function preparePull(frequency, slot, item, nbt)
@@ -178,7 +163,7 @@ local function preparePull(frequency, slot, item, nbt)
         log:error("abort: item data mismatch")
 
         -- Abort, pull items back to the ender chest.
-        local ok, dumpAmt = pullPullDump(slot, amount)
+        local dumpAmt = tryPull(slot, amount)
 
         state.PENDING = nil
         state.commit()
@@ -186,14 +171,10 @@ local function preparePull(frequency, slot, item, nbt)
         turtleGuard.unlock()
         echestGuard.unlock()
 
-        if ok then
-            return "MISMATCH"
-        else
-            return "MISMATCH_BLOCKED", dumpAmt
-        end
+        return dumpAmt
     end
 
-    return "OK", {
+    return {
         amount = amount,
 
         ---@async
@@ -212,7 +193,6 @@ local function preparePull(frequency, slot, item, nbt)
             echestGuard.unlock()
         end,
 
-        ---@return boolean ok Whether the transfer was to the specified slot.
         ---@return number dumpAmt How many items were dumped.
         ---@nodiscard
         ---@async
@@ -220,7 +200,7 @@ local function preparePull(frequency, slot, item, nbt)
             log:info("Pull rollback")
 
             -- Abort, pull items back to the ender chest.
-            local ok, dumpAmt = pullPullDump(slot, amount)
+            local dumpAmt = tryPull(slot, amount)
 
             state.PENDING = nil
             state.commit()
@@ -228,7 +208,7 @@ local function preparePull(frequency, slot, item, nbt)
             turtleGuard.unlock()
             echestGuard.unlock()
 
-            return ok, dumpAmt
+            return dumpAmt
         end,
     }
 end
@@ -243,7 +223,7 @@ local function recover()
         log:info("Recovering pending transaction")
         if turtle.getItemCount(16) > 0 then
             -- Complete the pending transfer.
-            pullPullDump(state.PENDING.slot, turtle.getItemCount(16))
+            tryPull(state.PENDING.slot, turtle.getItemCount(16))
         else
             -- Nothing to do, the transfer has been completed already.
         end

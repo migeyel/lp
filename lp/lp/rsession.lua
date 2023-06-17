@@ -247,29 +247,20 @@ local function handleBuy(id, rch, uuid, buy)
         allocatedKrist = pool.allocatedKrist,
     }
 
-    local ok, dumpAmt = pushTransfer.commit(sessions.state, pools.state) --[[yield]] account, pool = nil, nil
-
-    if ok then
-        send(rch, uuid, proto.Response.serialize {
-            id = id,
-            success = {
-                buy = orderExecution,
+    local dumpAmt = pushTransfer.commit(sessions.state, pools.state) --[[yield]] account, pool = nil, nil
+    send(rch, uuid, proto.Response.serialize {
+        id = id,
+        success = dumpAmt == 0 and {
+            buy = orderExecution,
+        } or nil,
+        failure = dumpAmt ~= 0 and {
+            buyImproperRace = {
+                order = orderExecution,
+                dumped = dumpAmt,
+                slot = buy.slot,
             },
-        })
-    else
-        send(rch, uuid, proto.Response.serialize {
-            id = id,
-            failure = {
-                buyTransferBlocked = {
-                    order = orderExecution,
-                },
-                blockedPull = {
-                    originalSlot = buy.slot,
-                    destroyedAmount = dumpAmt,
-                },
-            },
-        })
-    end
+        } or nil,
+    })
 
     sessions.buyEvent.queue()
 end
@@ -349,25 +340,21 @@ local function handleSell(id, rch, uuid, sell)
         })
     end
 
-    local status, pullTransfer = echest.preparePull(
+    local pullTransfer = echest.preparePull(
         freq,
         sell.slot,
         pool.item,
         pool.nbt
     ) --[[yield]] account, pool = nil, nil
 
-    if status ~= "OK" then
+    if type(pullTransfer) == "number" then
         return send(rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
-                sellTransferMismatch = {
-                    expectedItem = detail.name,
-                    expectedNbt = detail.nbt,
+                sellImproperRace = {
+                    dumped = pullTransfer,
+                    slot = sell.slot,
                 },
-                blockedPull = status == "MISMATCH_BLOCKED" and {
-                    originalSlot = sell.slot,
-                    destroyedAmount = pullTransfer --[[@as number]],
-                } or nil,
             },
         })
     end
@@ -379,14 +366,14 @@ local function handleSell(id, rch, uuid, sell)
     -- meantime by another thread. Check that it hasn't.
     account = sessions.getAcctByUuid(uuid)
     if not account then
-        local ok, dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
+        local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
         return send(rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
-                noSuchAccount = {},
-                blockedPull = not ok and {
-                    originalSlot = sell.slot,
-                    destroyedAmount = dumpAmt,
+                noSuchAccount = dumpAmt == 0 and {} or nil,
+                sellImproperRace = dumpAmt ~= 0 and {
+                    dumped = dumpAmt,
+                    slot = sell.slot,
                 } or nil,
             },
         })
@@ -394,14 +381,14 @@ local function handleSell(id, rch, uuid, sell)
 
     -- Check that the frequency hasn't changed.
     if freq ~= account.storageFrequency then
-        local ok, dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
+        local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
         return send(rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
-                noFrequency = {},
-                blockedPull = not ok and {
-                    originalSlot = sell.slot,
-                    destroyedAmount = dumpAmt,
+                noFrequency = dumpAmt == 0 and {} or nil,
+                sellImproperRace = dumpAmt ~= 0 and {
+                    dumped = dumpAmt,
+                    slot = sell.slot,
                 } or nil,
             }
         })
@@ -414,17 +401,17 @@ local function handleSell(id, rch, uuid, sell)
     -- between yields without ceasing to exist from our perspective.
     pool = pools.get(poolId)
     if not pool then
-        local ok, dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
+        local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
         return send(rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
-                noSuchPoolItem = {
+                noSuchPoolItem = dumpAmt == 0 and {
                     item = detail.name,
                     nbt = detail.nbt,
-                },
-                blockedPull = not ok and {
-                    originalSlot = sell.slot,
-                    destroyedAmount = dumpAmt,
+                } or nil,
+                sellImproperRace = dumpAmt ~= 0 and {
+                    dumped = dumpAmt,
+                    slot = sell.slot,
                 } or nil,
             },
         })
@@ -435,17 +422,17 @@ local function handleSell(id, rch, uuid, sell)
     sellFee = pool:sellFee(pullTransfer.amount)
     sellPriceWithFee = util.mFloor(sellPriceNoFee - sellFee)
     if sellPriceWithFee / detail.count < sell.minPerItem then
-        local ok, dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
+        local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
         return send(rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
-                priceLimitExceeded = {
+                priceLimitExceeded = dumpAmt == 0 and {
                     specified = sell.minPerItem,
                     actual = sellPriceWithFee / detail.count,
-                },
-                blockedPull = not ok and {
-                    originalSlot = sell.slot,
-                    destroyedAmount = dumpAmt,
+                } or nil,
+                sellImproperRace = dumpAmt ~= 0 and {
+                    dumped = dumpAmt,
+                    slot = sell.slot,
                 } or nil,
             },
         })
