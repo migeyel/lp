@@ -138,6 +138,43 @@ local function handleBuy(ctx)
 end
 
 ---@param ctx cbb.Context
+local function handleInfo(ctx)
+    local label = ctx.args.item ---@type string
+
+    local pool = pools.getByTag(label)
+    if pool then
+        return ctx.reply(
+            {
+                text = ("Pool %q\n"):format(pool.label),
+            },
+            {
+                text = ("- Item Name: %s\n"):format(pool.item),
+            },
+            {
+                text = ("- Item NBT: %s\n"):format(pool.nbt),
+            },
+            {
+                text = ("- Allocated Items: %g\n"):format(pool.allocatedItems),
+            },
+            {
+                text = ("- Allocated Krist: %g\n"):format(pool.allocatedKrist),
+            },
+            {
+                text = ("- Price: %g\n"):format(pool:midPrice()),
+            },
+            {
+                text = ("- Trading Fees: %g%%"):format(100 * pools.FEE_RATE),
+            }
+        )
+    else
+        return ctx.replyErr(
+            ("The pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+end
+
+---@param ctx cbb.Context
 local function handleBalance(ctx)
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     return ctx.reply({
@@ -408,6 +445,20 @@ local function handleWhatsNew(ctx)
             text = "LP Recent Changes:",
         },
         {
+            text = "\nJune 17th - ",
+            color = cbb.colors.BLUE,
+        },
+        {
+            text = "New command: ",
+        },
+        {
+            text = "\\lp info",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = "."
+        },
+        {
             text = "\nMay 14th - ",
             color = cbb.colors.BLUE,
         },
@@ -483,6 +534,12 @@ local root = cbb.literal("lp") "lp" {
                 help = "Buys an item",
                 execute = handleBuy,
             },
+        },
+    },
+    cbb.literal("info") "info" {
+        cbb.string "item" {
+            help = "Displays information about a pool",
+            execute = handleInfo,
         },
     },
     cbb.literal("exit") "exit" {
