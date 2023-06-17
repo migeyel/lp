@@ -145,22 +145,22 @@ local function handleInfo(ctx)
                 text = ("Pool %q\n"):format(pool.label),
             },
             {
-                text = ("\tItem Name %s\n"):format(pool.item),
+                text = ("- Item Name %s\n"):format(pool.item),
             },
             {
-                text = ("\tItem NBT %s\n"):format(pool.nbt),
+                text = ("- Item NBT %s\n"):format(pool.nbt),
             },
             {
-                text = ("\tAllocated Items: %g\n"):format(pool.allocatedItems),
+                text = ("- Allocated Items: %g\n"):format(pool.allocatedItems),
             },
             {
-                text = ("\tAllocated Krist: %g\n"):format(pool.allocatedKrist),
+                text = ("- Allocated Krist: %g\n"):format(pool.allocatedKrist),
             },
             {
-                text = ("\tPrice: %g\n"):format(pool:midPrice()),
+                text = ("- Price: %g\n"):format(pool:midPrice()),
             },
             {
-                text = ("\tTrading Fees: %g%%"):format(100 * pools.FEE_RATE),
+                text = ("- Trading Fees: %g%%"):format(100 * pools.FEE_RATE),
             }
         )
     else
