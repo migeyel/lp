@@ -56,12 +56,14 @@ end
 ---@field balance number
 ---@field uuid string
 ---@field storageFrequency number|nil
+---@field persist true|nil
 local Account = {}
 
 ---Sets the username for an account, creating it if needeed.
 ---@param username string
 ---@param uuid string
 ---@param commit boolean
+---@return Account
 local function setAcct(uuid, username, commit)
     local acct = state.accounts[uuid] or {
         balance = 0,
@@ -77,6 +79,8 @@ local function setAcct(uuid, username, commit)
     state.accounts[uuid] = acct
 
     if commit then state.commit() end
+
+    return acct
 end
 
 ---@param uuid string
@@ -100,6 +104,19 @@ local function accounts()
     end
 
     return anext, nil, nil
+end
+
+---@param commit boolean
+---@return boolean
+function Account:togglePersistence(commit)
+    if self.persist then
+        self.persist = nil
+    else
+        self.persist = true
+    end
+
+    if commit then state.commit() end
+    return not not self.persist
 end
 
 ---@param frequency number
@@ -296,10 +313,6 @@ function Session:sell(pool, amount, commit)
 end
 
 function Session:close()
-    local acct = self:account()
-    local amt, rem = acct:withdraw(math.floor(acct.balance), false)
-    state.session = nil
-
     -- Auto-realloc
     for id, fee in pairs(self.buyFees) do
         local pool = pools.get(id)
@@ -310,9 +323,18 @@ function Session:close()
         if pool and fee > 0 then pool:reallocKst(fee, false) end
     end
 
-    wallet.state:commitMany(state, pools.state)
-    endEvent.queue(self.uuid, amt, rem)
-    wallet.sendPendingTx()
+    local acct = self:account()
+    if acct.persist then
+        state.session = nil
+        state:commitMany(pools.state)
+        endEvent.queue(self.uuid, 0, acct.balance)
+    else
+        local amt, rem = acct:withdraw(math.floor(acct.balance), false)
+        state.session = nil
+        wallet.state:commitMany(state, pools.state)
+        endEvent.queue(self.uuid, amt, rem)
+        wallet.sendPendingTx()
+    end
 end
 
 return {

@@ -175,6 +175,21 @@ local function handleInfo(ctx)
 end
 
 ---@param ctx cbb.Context
+local function handlePersist(ctx)
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, false)
+    local persist = acct:togglePersistence(true)
+    if persist then
+        return ctx.reply({
+            text = "Your balance will now persist across sessions."
+        })
+    else
+        return ctx.reply({
+            text = "Your balance will no longer persist across sessions."
+        })
+    end
+end
+
+---@param ctx cbb.Context
 local function handleBalance(ctx)
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     return ctx.reply({
@@ -546,6 +561,10 @@ local root = cbb.literal("lp") "lp" {
         help = "Exits a session",
         execute = handleExit,
     },
+    cbb.literal("persist") "persist" {
+        help = "Toggles balance persistence on session exit",
+        execute = handlePersist,
+    },
     cbb.literal("frequency") "frequency" {
         help = "Displays ender storage frequency information",
         execute = handleFreqQuery,
@@ -616,15 +635,26 @@ threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
         local uuid, amt, rem = sessions.endEvent.pull()
-        cbb.tell(uuid, BOT_NAME, {
-            text = (
-                "Your %d KST were transferred. The remaining %g are stored "
-                    .. "in your account and will reappear in the next session."
-            ):format(
-                amt,
-                rem
-            ),
-            color = cbb.colors.WHITE,
-        })
+        if amt ~= 0 then
+            cbb.tell(uuid, BOT_NAME, {
+                text = (
+                    "Your %d KST were transferred. The remaining %g are stored "
+                        .. "in your account and will reappear in the next "
+                        .. "session."
+                ):format(
+                    amt,
+                    rem
+                ),
+            })
+        else
+            cbb.tell(uuid, BOT_NAME, {
+                text = (
+                    "Your balance of %g is stored in your account and will "
+                        .. "reappear in the next session."
+                ):format(
+                    rem
+                ),
+            })
+        end
     end
 end)
