@@ -1,3 +1,8 @@
+if not fs.exists(shell.resolve("unetcbundle.lua")) then
+    print("Fetching the unet client bundle")
+    shell.run("pastebin get BwEgPZkRtP unetcbundle.lua")
+end
+
 local unetcBundle = require "unetcbundle"
 local unetc = unetcBundle.unetc
 local lproto = unetcBundle.lproto
@@ -244,47 +249,66 @@ if not token then
 end
 
 -- Start a session
-local session = unetc.connect(token)
-local channel = rng.random(32)
-session:open(channel)
+local session, channel
+
+local function connect()
+    print("Opening unet session")
+    session = assert(unetc.connect(token))
+    channel = rng.random(32)
+    session:open(channel)
+end
+
+local function send(req)
+    print("Sending request")
+    pprint(req)
+    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize(req))
+end
+
+local function shutdown()
+    print("Closing unet session")
+    return session:shutdown()
+end
 
 local function waitForResponse()
+    print("Waiting for response")
     while true do
         local _, sid, uuid, ch, _, m = os.pullEvent("unet_message")
         if sid == session:id() and uuid == LP_UUID and ch == channel then
             local res = proto.Response.deserialize(m)
             if res.success then
                 print("Request OK")
-                pprint(res.success)
             else
                 printError("Request Error")
-                pprint(res.failure)
             end
+            pprint(res)
             return
         end
     end
 end
 
 if args[1] == "account" then
-    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+    connect()
+    send({
         id = 0, -- We aren't reusing the session so the id doesn't matter.
         account = {},
     })
-
     waitForResponse()
+    return shutdown()
 elseif args[1] == "info" then
     local label = args[2]
 
     if not label then
-        printError("Usage: " .. usages.info) return session:shutdown()
+        printError("Usage: " .. usages.info)
+        return
     end
 
-    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+    connect()
+    send({
         id = 0,
         info = { label = label },
     })
-
     waitForResponse()
+    return shutdown()
 elseif args[1] == "buy" then
     local label = args[2]
     local slot = tonumber(args[3])
@@ -292,10 +316,12 @@ elseif args[1] == "buy" then
     local limit = tonumber(args[5])
 
     if not label or not slot or not amount or not limit then
-        printError("Usage: " .. usages.buy) return session:shutdown()
+        printError("Usage: " .. usages.buy)
+        return
     end
 
-    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+    connect()
+    send({
         id = 0,
         buy = {
             label = label,
@@ -304,25 +330,25 @@ elseif args[1] == "buy" then
             maxPerItem = limit,
         },
     })
-
     waitForResponse()
+    return shutdown()
 elseif args[1] == "sell" then
     local slot = tonumber(args[2])
     local limit = tonumber(args[3])
 
     if not slot or not limit then
-        printError("Usage: " .. usages.sell) return session:shutdown()
+        printError("Usage: " .. usages.sell)
+        return
     end
 
-    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+    connect()
+    send({
         id = 0,
         sell = {
             slot = math.floor(slot),
             minPerItem = limit,
         }
     })
-
     waitForResponse()
+    return shutdown()
 end
-
-session:shutdown()
