@@ -239,9 +239,9 @@ local function handleFreqQuery(ctx)
                 "frequency is %g KST. There are %g frequencies currently " ..
                 "available."
             ):format(
-                util.freqNames[l],
-                util.freqNames[m],
-                util.freqNames[r],
+                util.colorName[l],
+                util.colorName[m],
+                util.colorName[r],
                 sessions.ECHEST_ALLOCATION_PRICE,
                 frequencies.numFrequencies()
             )

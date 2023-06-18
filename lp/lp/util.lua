@@ -28,11 +28,12 @@ local function num2Freq(f)
         2 ^ bit32.extract(f, 8, 4)
 end
 
-local freqNames = {
-    [0] = "white", "orange", "magenta", "light blue", "yellow", "lime", "pink",
-    "gray", "light gray", "cyan", "purple", "blue", "brown", "green", "red",
-    "black",
-}
+local colorName = {}
+for k, v in pairs(colors) do
+    if type(v) == "number" then
+        colorName[v] = k
+    end
+end
 
 return {
     mFloor = mFloor,
@@ -40,5 +41,5 @@ return {
     mRound = mRound,
     freq2Num = freq2Num,
     num2Freq = num2Freq,
-    freqNames = freqNames,
+    colorName = colorName,
 }
