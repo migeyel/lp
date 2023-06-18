@@ -207,8 +207,20 @@ local function handleWithdraw(ctx)
             ("You don't have the %g KST needed to withdraw."):format(amount)
         )
     end
-    acct:withdraw(amount, true)
-    if not wallet.sendPendingTx() then
+    if amount == 0 then
+        return ctx.replyErr(
+            "You can't transfer 0 KST you dummy!",
+            ctx.argTokens.amount
+        )
+    end
+    if amount < 0 then
+        return ctx.replyErr(
+            "You're late. The infinite money glitch has been patched already.",
+            ctx.argTokens.amount
+        )
+    end
+    local amt, _ = acct:withdraw(amount, true)
+    if amt ~= 0 and not wallet.sendPendingTx() then
         return ctx.replyErr(
             "An unknown error occurred while withdrawing, please ping PG231"
         )

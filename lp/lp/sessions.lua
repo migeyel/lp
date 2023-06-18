@@ -152,11 +152,15 @@ end
 ---@param amount number
 ---@param commit boolean
 function Account:withdraw(amount, commit)
-    local delta, rem = self:transfer(-amount, false)
-    local receiver = self.uuid:gsub("-", "") .. "@" .. KRISTPAY_DOMAIN
-    wallet.setPendingTx(receiver, -delta,  {}, false)
-    if commit then wallet.state:commitMany(state) end
-    return -delta, rem
+    if amount > 0 then
+        local delta, rem = self:transfer(-amount, false)
+        local receiver = self.uuid:gsub("-", "") .. "@" .. KRISTPAY_DOMAIN
+        wallet.setPendingTx(receiver, -delta,  {}, false)
+        if commit then wallet.state:commitMany(state) end
+        return -delta, rem
+    else
+        return 0, self.balance
+    end
 end
 
 ---@param delta number
