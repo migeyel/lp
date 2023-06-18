@@ -35,6 +35,8 @@ end
 ---@type table<string, number>
 local storedFrequencies = {}
 
+local nStoredFrequencies = 0
+
 for left = 0, 15 do
     for middle = 0, 15 do
         for right = 0, 15 do
@@ -47,11 +49,14 @@ for left = 0, 15 do
             )
 
             if inventory.get().getCount("sc-goodies:ender_storage", hash) > 0 then
-                storedFrequencies[hash] = util.freq2Num(
-                    2 ^ left,
-                    2 ^ middle,
-                    2 ^ right
-                )
+                if not storedFrequencies[hash] then
+                    nStoredFrequencies = nStoredFrequencies + 1
+                    storedFrequencies[hash] = util.freq2Num(
+                        2 ^ left,
+                        2 ^ middle,
+                        2 ^ right
+                    )
+                end
             end
         end
     end
@@ -60,10 +65,19 @@ end
 ---@return string?, number?
 local function popFrequency()
     local h, f = next(storedFrequencies)
-    if h then storedFrequencies[h] = nil end
+    if h then
+        nStoredFrequencies = nStoredFrequencies - 1
+        storedFrequencies[h] = nil
+    end
     return h, f
+end
+
+---@return number
+local function numFrequencies()
+    return nStoredFrequencies
 end
 
 return {
     popFrequency = popFrequency,
+    numFrequencies = numFrequencies,
 }

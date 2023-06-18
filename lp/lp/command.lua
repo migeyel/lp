@@ -220,8 +220,9 @@ local function handleFreqQuery(ctx)
     return ctx.reply({
         text = (
             "The current price for an allocated frequency is %g KST. You can" ..
-            " get one by using \\lp frequency buy"
-        ):format(sessions.ECHEST_ALLOCATION_PRICE)
+            " get one by using \\lp frequency buy. There are %g frequencies" ..
+            " currently available."
+        ):format(sessions.ECHEST_ALLOCATION_PRICE, frequencies.numFrequencies())
     })
 end
 
