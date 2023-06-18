@@ -56,9 +56,11 @@ end
 
 ---@param frequency number
 ---@param slot number
+---@return boolean
+---@return table
 local function getItemDetail(frequency, slot)
     setFrequency(frequency)
-    return echest.getItemDetail(slot)
+    return pcall(echest.getItemDetail, slot)
 end
 
 ---@param frequency number The frequency number to push to.
@@ -77,8 +79,8 @@ local function preparePush(frequency, item, nbt, amount, slot)
     setFrequency(frequency)
 
     -- Check that an output slot exists.
-    local detail = echest.getItemDetail(slot)
-    if detail then
+    local ok, detail = pcall(echest.getItemDetail, slot)
+    if not ok or detail then
         echestGuard.unlock()
         return "NONEMPTY"
     end
