@@ -315,7 +315,7 @@ end
 function Session:shutdown()
     self._inner:justRequest("shutdown", {})
     if redrun.getstate(self._inner.task) then
-        os.queueEvent("unet_close", self._inner.sessionId)
+        os.queueEvent("unet_closed", self._inner.sessionId)
         redrun.kill(self._inner.task)
     end
 end

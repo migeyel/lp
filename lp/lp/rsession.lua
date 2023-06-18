@@ -4,20 +4,27 @@ local util = require "lp.util"
 local pools = require "lp.pools"
 local echest = require "lp.echest"
 local proto = require "lp.proto"
+local unetc = require "unet.client"
+local log   = require "lp.log"
 
+local UNET_TOKEN = "03ea4cb6-11bf-4ba1-8829-2fa9a44ccc45"
+local UNET_CHANNEL = "lp"
+
+---@param uss unetc.Session
 ---@param rch string
 ---@param uuid string
 ---@param m string
-local function send(rch, uuid, m)
-    error("not yet implemented!")
+local function send(uss, rch, uuid, m)
+    uss:send(uuid, rch, UNET_CHANNEL, m)
 end
 
+---@param uss unetc.Session
 ---@param id number?
 ---@param rch string
 ---@param uuid string
 ---@param parameter string
-local function sendMissingParameter(id, rch, uuid, parameter)
-    return send(rch, uuid, proto.Response.serialize {
+local function sendMissingParameter(uss, id, rch, uuid, parameter)
+    return send(uss, rch, uuid, proto.Response.serialize {
         id = id,
         failure = {
             missingParameter = {
@@ -27,18 +34,19 @@ local function sendMissingParameter(id, rch, uuid, parameter)
     })
 end
 
+---@param uss unetc.Session
 ---@param id number?
 ---@param rch string
 ---@param uuid string
 ---@param info ProtoRequestInfo
-local function handleInfo(id, rch, uuid, info)
+local function handleInfo(uss, id, rch, uuid, info)
     if not info.label then
-        return sendMissingParameter(id, rch, uuid, "label")
+        return sendMissingParameter(uss, id, rch, uuid, "label")
     end
 
     local pool = pools.getByTag(info.label)
     if not pool then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchPoolLabel = {
@@ -48,7 +56,7 @@ local function handleInfo(id, rch, uuid, info)
         })
     end
 
-    return send(rch, uuid, proto.Response.serialize {
+    return send(uss, rch, uuid, proto.Response.serialize {
         id = id,
         success = {
             info = {
@@ -62,30 +70,31 @@ local function handleInfo(id, rch, uuid, info)
     })
 end
 
+---@param uss unetc.Session
 ---@param id number
 ---@param rch string
 ---@param uuid string
 ---@param buy ProtoRequestBuy
-local function handleBuy(id, rch, uuid, buy)
+local function handleBuy(uss, id, rch, uuid, buy)
     if not buy.label then
-        return sendMissingParameter(id, rch, uuid, "label")
+        return sendMissingParameter(uss, id, rch, uuid, "label")
     end
 
     if not buy.slot then
-        return sendMissingParameter(id, rch, uuid, "slot")
+        return sendMissingParameter(uss, id, rch, uuid, "slot")
     end
 
     if not buy.amount then
-        return sendMissingParameter(id, rch, uuid, "amount")
+        return sendMissingParameter(uss, id, rch, uuid, "amount")
     end
 
     if not buy.maxPerItem then
-        return sendMissingParameter(id, rch, uuid, "maxPerItem")
+        return sendMissingParameter(uss, id, rch, uuid, "maxPerItem")
     end
 
     local account = sessions.getAcctByUuid(uuid)
     if not account then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchAccount = {},
@@ -95,7 +104,7 @@ local function handleBuy(id, rch, uuid, buy)
 
     local freq = account.storageFrequency
     if not freq then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noFrequency = {},
@@ -105,7 +114,7 @@ local function handleBuy(id, rch, uuid, buy)
 
     local pool = pools.getByTag(buy.label)
     if not pool then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchPoolLabel = {
@@ -120,7 +129,7 @@ local function handleBuy(id, rch, uuid, buy)
     local buyFee = pool:buyFee(buy.amount)
     local buyPriceWithFee = util.mCeil(buyPriceNoFee + buyFee)
     if buyPriceWithFee > account.balance then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 notEnoughFunds = {
@@ -132,7 +141,7 @@ local function handleBuy(id, rch, uuid, buy)
     end
 
     if buyPriceWithFee / buy.amount > buy.maxPerItem then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 priceLimitExceeded = {
@@ -152,7 +161,7 @@ local function handleBuy(id, rch, uuid, buy)
     )
 
     if pushTransfer == "NONEMPTY" then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             failure = {
                 buySlotOccupied = {
                     slot = buy.slot,
@@ -166,7 +175,7 @@ local function handleBuy(id, rch, uuid, buy)
     account = sessions.getAcctByUuid(uuid)
     if not account then
         pushTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchAccount = {},
@@ -177,7 +186,7 @@ local function handleBuy(id, rch, uuid, buy)
     -- Check that the frequency hasn't changed.
     if freq ~= account.storageFrequency then
         pushTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noFrequency = {},
@@ -193,7 +202,7 @@ local function handleBuy(id, rch, uuid, buy)
     pool = pools.get(poolId)
     if not pool then
         pushTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchPoolLabel = {
@@ -210,7 +219,7 @@ local function handleBuy(id, rch, uuid, buy)
     if buyPriceWithFee > account.balance then
         local balance = account.balance
         pushTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 notEnoughFunds = {
@@ -222,7 +231,7 @@ local function handleBuy(id, rch, uuid, buy)
     end
 
     if buyPriceWithFee / buy.amount > buy.maxPerItem then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 priceLimitExceeded = {
@@ -248,7 +257,7 @@ local function handleBuy(id, rch, uuid, buy)
     }
 
     local dumpAmt = pushTransfer.commit(sessions.state, pools.state) --[[yield]] account, pool = nil, nil
-    send(rch, uuid, proto.Response.serialize {
+    send(uss, rch, uuid, proto.Response.serialize {
         id = id,
         success = dumpAmt == 0 and {
             buy = orderExecution,
@@ -265,22 +274,23 @@ local function handleBuy(id, rch, uuid, buy)
     sessions.buyEvent.queue()
 end
 
+---@param uss unetc.Session
 ---@param id number
 ---@param rch string
 ---@param uuid string
 ---@param sell ProtoRequestSell
-local function handleSell(id, rch, uuid, sell)
+local function handleSell(uss, id, rch, uuid, sell)
     if not sell.slot then
-        return sendMissingParameter(id, rch, uuid, "slot")
+        return sendMissingParameter(uss, id, rch, uuid, "slot")
     end
 
     if not sell.minPerItem then
-        return sendMissingParameter(id, rch, uuid, "minPerItem")
+        return sendMissingParameter(uss, id, rch, uuid, "minPerItem")
     end
 
     local account = sessions.getAcctByUuid(uuid)
     if not account then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchAccount = {},
@@ -290,7 +300,7 @@ local function handleSell(id, rch, uuid, sell)
 
     local freq = account.storageFrequency
     if not freq then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noFrequency = {},
@@ -300,7 +310,7 @@ local function handleSell(id, rch, uuid, sell)
 
     local detail = echest.getItemDetail(freq, sell.slot) --[[yield]] account = nil
     if not detail then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 sellSlotEmpty = {
@@ -314,7 +324,7 @@ local function handleSell(id, rch, uuid, sell)
     local poolId = item .. "~" .. nbt
     local pool = pools.get(poolId)
     if not pool then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchPoolItem = {
@@ -329,7 +339,7 @@ local function handleSell(id, rch, uuid, sell)
     local sellFee = pool:sellFee(detail.count)
     local sellPriceWithFee = util.mFloor(sellPriceNoFee - sellFee)
     if sellPriceWithFee / detail.count < sell.minPerItem then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 priceLimitExceeded = {
@@ -348,7 +358,7 @@ local function handleSell(id, rch, uuid, sell)
     ) --[[yield]] account, pool = nil, nil
 
     if type(pullTransfer) == "number" then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 sellImproperRace = {
@@ -364,7 +374,7 @@ local function handleSell(id, rch, uuid, sell)
     account = sessions.getAcctByUuid(uuid)
     if not account then
         local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchAccount = dumpAmt == 0 and {} or nil,
@@ -379,7 +389,7 @@ local function handleSell(id, rch, uuid, sell)
     -- Check that the frequency hasn't changed.
     if freq ~= account.storageFrequency then
         local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noFrequency = dumpAmt == 0 and {} or nil,
@@ -399,7 +409,7 @@ local function handleSell(id, rch, uuid, sell)
     pool = pools.get(poolId)
     if not pool then
         local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchPoolItem = dumpAmt == 0 and {
@@ -420,7 +430,7 @@ local function handleSell(id, rch, uuid, sell)
     sellPriceWithFee = util.mFloor(sellPriceNoFee - sellFee)
     if sellPriceWithFee / detail.count < sell.minPerItem then
         local dumpAmt = pullTransfer.rollback() --[[yield]] account, pool = nil, nil
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 priceLimitExceeded = dumpAmt == 0 and {
@@ -455,15 +465,19 @@ local function handleSell(id, rch, uuid, sell)
 
     pullTransfer.commit(sessions.state, pools.state) --[[yield]] account, pool = nil, nil
 
-    send(rch, uuid, response)
+    send(uss, rch, uuid, response)
 
     sessions.sellEvent.queue()
 end
 
-local function handleAccount(id, rch, uuid)
+---@param uss unetc.Session
+---@param id number
+---@param rch string
+---@param uuid string
+local function handleAccount(uss, id, rch, uuid)
     local account = sessions.getAcctByUuid(uuid)
     if not account then
-        return send(rch, uuid, proto.Response.serialize {
+        return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
                 noSuchAccount = {},
@@ -471,7 +485,7 @@ local function handleAccount(id, rch, uuid)
         })
     end
 
-    return send(rch, uuid, proto.Response.serialize {
+    return send(uss, rch, uuid, proto.Response.serialize {
         id = id,
         success = {
             account = {
@@ -481,26 +495,44 @@ local function handleAccount(id, rch, uuid)
     })
 end
 
+---@param uss unetc.Session
 ---@param rch string
 ---@param uuid string
 ---@param m string
-local function handleValidMessage(rch, uuid, m)
+local function handleValidMessage(uss, rch, uuid, m)
     local ok, root = pcall(proto.Request.deserialize, m)
     if not ok then return end
 
     root = root ---@type ProtoRequest
 
     if root.info then
-        return handleInfo(root.id, rch, uuid, root.info)
+        return handleInfo(uss, root.id, rch, uuid, root.info)
     elseif root.buy then
-        return handleBuy(root.id, rch, uuid, root.buy)
+        return handleBuy(uss, root.id, rch, uuid, root.buy)
     elseif root.sell then
-        return handleSell(root.id, rch, uuid, root.sell)
+        return handleSell(uss, root.id, rch, uuid, root.sell)
     elseif root.account then
-        return handleAccount(root.id, rch, uuid)
+        return handleAccount(uss, root.id, rch, uuid)
+    end
+end
+
+local function handleUnetSession()
+    local uss = unetc.connect(UNET_TOKEN, nil, 10)
+    if not uss then return end
+    uss:open(UNET_CHANNEL)
+    while true do
+        local e, sid, uuid, _, rch, m = os.pullEvent()
+        if e == "unet_closed" and sid == uss:id() then return end
+        if e == "unet_message" and sid == uss:id() then
+            local ok, err = pcall(handleValidMessage, uss, rch, uuid, m)
+            if not ok then log:error(err) end
+        end
     end
 end
 
 threads.register(function()
-    error("TODO " .. handleValidMessage)
+    while true do
+        handleUnetSession()
+        log:error("unet session was closed")
+    end
 end)
