@@ -229,6 +229,25 @@ end
 
 ---@param ctx cbb.Context
 local function handleFreqQuery(ctx)
+    local acct = sessions.getAcctByUuid(ctx.data.user.uuid)
+    if acct and acct.storageFrequency then
+        local l, m, r = util.num2Freq(acct.storageFrequency)
+        return ctx.reply({
+            text = (
+                "Your allocated frequency is (%s, %s, %s). You cannot buy " ..
+                "another frequency. The current price for an allocated " ..
+                "frequency is %g KST. There are %g frequencies currently " ..
+                "available."
+            ):format(
+                util.freqNames[l],
+                util.freqNames[m],
+                util.freqNames[r],
+                sessions.ECHEST_ALLOCATION_PRICE,
+                frequencies.numFrequencies()
+            )
+        })
+    end
+
     return ctx.reply({
         text = (
             "The current price for an allocated frequency is %g KST. You can" ..
