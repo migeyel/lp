@@ -463,6 +463,27 @@ local function handleSell(id, rch, uuid, sell)
     sessions.sellEvent.queue()
 end
 
+local function handleAccount(id, rch, uuid)
+    local account = sessions.getAcctByUuid(uuid)
+    if not account then
+        return send(rch, uuid, proto.Response.serialize {
+            id = id,
+            failure = {
+                noSuchAccount = {},
+            },
+        })
+    end
+
+    return send(rch, uuid, proto.Response.serialize {
+        id = id,
+        success = {
+            account = {
+                balance = account.balance,
+            },
+        },
+    })
+end
+
 ---@param rch string
 ---@param uuid string
 ---@param m string
@@ -478,6 +499,8 @@ local function handleValidMessage(rch, uuid, m)
         return handleBuy(root.id, rch, uuid, root.buy)
     elseif root.sell then
         return handleSell(root.id, rch, uuid, root.sell)
+    elseif root.account then
+        return handleAccount(root.id, rch, uuid)
     end
 end
 

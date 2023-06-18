@@ -7,6 +7,7 @@ local proto = {}
 ---@field info ProtoRequestInfo?
 ---@field buy ProtoRequestBuy?
 ---@field sell ProtoRequestSell?
+---@field account ProtoRequestAccount?
 
 ---@class ProtoRequestInfo
 ---@field label string?
@@ -20,6 +21,8 @@ local proto = {}
 ---@class ProtoRequestSell
 ---@field slot number?
 ---@field minPerItem string?
+
+---@class ProtoRequestAccount
 
 -- A request from a client to the LP server.
 proto.Request = lproto.message {
@@ -59,6 +62,9 @@ proto.Request = lproto.message {
         -- would otherwise succeed.
         minPerItem = lproto.double (2);
     } (4);
+
+    -- A query on account info.
+    account = lproto.message {} (5);
 }
 
 -- A successful buy order.
@@ -201,6 +207,11 @@ proto.Response = lproto.message {
 
         -- A sell order has succeeded.
         sell = proto.SellOrderExecution (3);
+
+        -- Information about the account.
+        account = lproto.message {
+            balance = lproto.double (1);
+        } (4);
     } (1);
 
     -- A request has failed.
