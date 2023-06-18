@@ -7,6 +7,7 @@ local frequencies = require "lp.frequencies"
 local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
+local wallet = require "lp.wallet"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -195,6 +196,23 @@ local function handleBalance(ctx)
     return ctx.reply({
         text = ("Your balance is %g KST"):format(acct.balance)
     })
+end
+
+---@param ctx cbb.Context
+local function handleWithdraw(ctx)
+    local amount = ctx.args.amount
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    if acct.balance < amount then
+        return ctx.replyErr(
+            ("You don't have the %g KST needed to withdraw."):format(amount)
+        )
+    end
+    acct:withdraw(amount, true)
+    if not wallet.sendPendingTx() then
+        return ctx.replyErr(
+            "An unknown error occurred while withdrawing, please ping PG231"
+        )
+    end
 end
 
 ---@param ctx cbb.Context
@@ -577,6 +595,12 @@ local root = cbb.literal("lp") "lp" {
         help = "Displays your balance",
         execute = handleBalance,
     },
+    cbb.literal("withdraw") "withdraw" {
+        cbb.integerExpr "amount" {
+            help = "Withdraws Krist from your account",
+            execute = handleWithdraw,
+        }
+    },
     cbb.literal("rawdelta") "rawdelta" {
         cbb.numberExpr "amount" {
             execute = handleRawdelta,
@@ -649,7 +673,7 @@ threads.register(function()
         else
             cbb.tell(uuid, BOT_NAME, {
                 text = (
-                    "Your balance of %g is stored in your account and will "
+                    "Your balance of %g KST is stored in your account and will "
                         .. "reappear in the next session."
                 ):format(
                     rem
