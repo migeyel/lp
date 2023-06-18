@@ -16,7 +16,7 @@ Tasks:require "lpc:main" {
         "redrun.lua",
         "unet/common/*.lua",
         "unet/client/*.lua",
-        "ccryptolib/ccryptolib/*.lua",
+        "ccryptolib/*.lua",
     },
 }
 

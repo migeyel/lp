@@ -1,6 +1,7 @@
 local unet = require "unet.client"
 local rng = require "unet.common.rng"
 local proto = require "lpc.proto"
+local expect = require "cc.expect"
 
 local LP_CHANNEL = "lp"
 local PG231_UUID = "eddfb535-16e1-4c6a-8b6e-3fcf4b85dc73"
@@ -69,6 +70,7 @@ end
 --- @return lpc.Info? info The pool info, or nil on failure.
 --- @return string? error
 function Session:info(label)
+    expect(1, label, "string")
     local res = self:_request("info", { label = label })
     if res.failure then return nil, mapFailure(res.failure) end
     return res.success.info
@@ -90,6 +92,11 @@ end
 --- @return lpc.Buy? buy The order execution result, or nil on failure
 --- @return string? error
 function Session:buy(slot, label, amount, maxPerItem)
+    expect(1, slot, "number")
+    expect(2, label, "string")
+    expect(3, amount, "number")
+    expect(4, maxPerItem, "number")
+
     local res = self:_request("buy", {
         label = label,
         slot = slot,
@@ -115,7 +122,9 @@ end
 --- @return lpc.Sell? sell The order execution result, or nil on failure.
 --- @return string? error
 function Session:sell(slot, minPerItem)
-    local res = self:_request("sell", { slot = slot })
+    expect(1, slot, "number")
+    expect(2, minPerItem, "number")
+    local res = self:_request("sell", { slot = slot, minPerItem = minPerItem })
     if res.failure then return nil, mapFailure(res.failure) end
     return res.success.sell
 end
@@ -137,10 +146,18 @@ end
 --- @param timeout number?
 --- @return lpc.Session? session The session, or nil on timeout.
 local function connect(token, modem, timeout)
+    expect(1, token, "string")
+    expect(2, modem, "table", "nil")
+    expect(3, timeout, "number", "nil")
     local channel = rng.random(32)
     local session = unet.connect(token, modem, timeout)
     if not session then return end
     session:open(channel)
+    return setmetatable({
+        _rid = 0,
+        _ch = channel,
+        _s = session,
+    }, { __index = Session })
 end
 
 return {
