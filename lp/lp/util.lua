@@ -16,8 +16,22 @@ local function mRound(n)
     return math.floor(n * 1000 + 1/2) / 1000
 end
 
+local function freq2Num(l, m, r)
+    return math.log(l, 2)
+        + math.log(m, 2) * 16
+        + math.log(r, 2) * 256
+end
+
+local function num2Freq(f)
+    return 2 ^ bit32.extract(f, 0, 4),
+        2 ^ bit32.extract(f, 4, 4),
+        2 ^ bit32.extract(f, 8, 4)
+end
+
 return {
     mFloor = mFloor,
     mCeil = mCeil,
     mRound = mRound,
+    freq2Num = freq2Num,
+    num2Freq = num2Freq,
 }

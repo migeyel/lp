@@ -14,10 +14,23 @@ local function get()
     end
 
     log:info("Starting inventory")
-
     local storage = { peripheral.find("inventory") }
-    for i, v in pairs(storage) do storage[i] = peripheral.getName(v) end
-    local linv = abstractInvLib(storage)
+    local filteredStorage = {}
+    for _, v in pairs(storage) do
+        local name = peripheral.getName(v)
+        local isEnderStorage = false
+        for _, ty in ipairs { peripheral.getType(name) } do
+            if ty == "ender_storage" then
+                isEnderStorage = true
+            end
+        end
+        if not isEnderStorage then
+            filteredStorage[#filteredStorage + 1] = peripheral.getName(v)
+        end
+    end
+
+    log:info("Loading inventory with " .. #filteredStorage .. " containers")
+    local linv = abstractInvLib(filteredStorage)
     linv.refreshStorage()
     linv.defrag()
 
@@ -28,7 +41,11 @@ local function get()
     return linv
 end
 
+local turtleMutexes = {}
+for i = 1, 16 do turtleMutexes[i] = mutex() end
+
 return {
     get = get,
-    turtleMutex = mutex(),
+    turtleMutexes = turtleMutexes, -- Inventory operations
+    turtleMutex = mutex(), -- Changing the selected slot
 }

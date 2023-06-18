@@ -12,10 +12,13 @@ local modem = peripheral.find("modem")
 
 local function suck()
     while true do
-        local guard = inventory.turtleMutex.lock()
+        local guard1 = inventory.turtleMutexes[1].lock()
+        local guard2 = inventory.turtleMutex.lock()
+        turtle.select(1)
         turtle.suckUp()
         if turtle.getItemCount(1) == 0 then
-            guard.unlock()
+            guard1.unlock()
+            guard2.unlock()
             sleep(INTERVAL)
         else
             local item = turtle.getItemDetail(1, true)
@@ -32,7 +35,6 @@ local function suck()
                         item.name,
                         item.nbt
                     )
-                    require"cc.pretty".pretty_print(space)
                     if space >= item.count - amt then
                         inventory.get().defrag()
                         amt = amt + inventory.get().pullItems(
@@ -63,7 +65,8 @@ local function suck()
             end
             turtle.select(1)
             turtle.drop()
-            guard.unlock()
+            guard1.unlock()
+            guard2.unlock()
         end
     end
 end
@@ -79,13 +82,19 @@ threads.register(function()
         parallel.waitForAny(
             function()
                 sessions.endEvent.pull()
-                inventory.turtleMutex.lock().unlock()
+                -- Wait for the suck loop to finish.
+                local guard1 = inventory.turtleMutexes[1].lock()
+                local guard2 = inventory.turtleMutex.lock()
+                guard1.unlock()
+                guard2.unlock()
             end,
             suck
         )
-        local guard = inventory.turtleMutex.lock()
+        local guard1 = inventory.turtleMutexes[1].lock()
+        local guard2 = inventory.turtleMutex.lock()
         turtle.select(1)
         turtle.drop()
-        guard.unlock()
+        guard1.unlock()
+        guard2.unlock()
     end
 end)

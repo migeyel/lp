@@ -1,7 +1,5 @@
 {
-    "Lua.workspace.library": [
-        "/home/miguel/.config/Code - OSS/User/globalStorage/sumneko.lua/addonManager/addons/cc-tweaked/module/library"
-    ],
+    "Lua.workspace.library": [ "./lua-ls-cc-tweaked/library" ],
     "Lua.runtime.version": "Lua 5.3",
     "Lua.workspace.checkThirdParty": false,
     "Lua.diagnostics.disable": ["deprecated"],

@@ -3,7 +3,7 @@ local KRISTPAY_DOMAIN = "switchcraft.kst"
 local state = require "lp.state".open "lp.session"
 local event = require "lp.event"
 local util = require "lp.util"
-local pools= require "lp.pools"
+local pools = require "lp.pools"
 local wallet = require "lp.wallet"
 
 ---@type table<string, Account|nil>
@@ -21,6 +21,8 @@ end
 ---@type Session|nil
 state.session = nil
 state.commit()
+
+local ECHEST_ALLOCATION_PRICE = 10
 
 -- uuid: string
 local startEvent = event.register()
@@ -41,16 +43,27 @@ local sessionBalChangeEvent = event.register()
 
 local mFloor, mCeil = util.mFloor, util.mCeil
 
+local frequencyMap = {}
+
+for _, account in pairs(state.accounts) do
+    if account.storageFrequency then
+        frequencyMap[account.storageFrequency] = account
+    end
+end
+
 ---@class Account
 ---@field username string
 ---@field balance number
 ---@field uuid string
+---@field storageFrequency number|nil
+---@field persist true|nil
 local Account = {}
 
 ---Sets the username for an account, creating it if needeed.
 ---@param username string
 ---@param uuid string
 ---@param commit boolean
+---@return Account
 local function setAcct(uuid, username, commit)
     local acct = state.accounts[uuid] or {
         balance = 0,
@@ -66,6 +79,8 @@ local function setAcct(uuid, username, commit)
     state.accounts[uuid] = acct
 
     if commit then state.commit() end
+
+    return acct
 end
 
 ---@param uuid string
@@ -91,6 +106,32 @@ local function accounts()
     return anext, nil, nil
 end
 
+---@param commit boolean
+---@return boolean
+function Account:togglePersistence(commit)
+    if self.persist then
+        self.persist = nil
+    else
+        self.persist = true
+    end
+
+    if commit then state.commit() end
+    return not not self.persist
+end
+
+---@param frequency number
+---@param commit boolean
+---@return boolean
+---@nodiscard
+function Account:allocFrequency(frequency, commit)
+    if self.storageFrequency then return false end
+    if frequencyMap[frequency] then return false end
+    frequencyMap[frequency] = self
+    self.storageFrequency = frequency
+    if commit then state.commit() end
+    return true
+end
+
 ---@param delta number
 ---@param commit boolean
 ---@return number newDelta The true transferred amount.
@@ -104,6 +145,18 @@ function Account:transfer(delta, commit)
        sessionBalChangeEvent.queue(self.uuid)
     end
     return delta, self.balance
+end
+
+--- AAAAHHH PASSING `commit` IN AS A BOOLEAN ISN'T COMPOSABLE AT ALL!
+--- The caller needs to know to commit BOTH sessions.state AND wallet.state!
+---@param amount number
+---@param commit boolean
+function Account:withdraw(amount, commit)
+    local delta, rem = self:transfer(-amount, false)
+    local receiver = self.uuid .. "@" .. KRISTPAY_DOMAIN
+    wallet.setPendingTx(receiver, -delta,  {}, false)
+    if commit then wallet.state:commitMany(state) end
+    return -delta, rem
 end
 
 ---@param delta number
@@ -259,19 +312,8 @@ function Session:sell(pool, amount, commit)
     sellEvent.queue(pool:id())
 end
 
-local function closedSessionError()
-    error("attempt to use a closed session")
-end
-
 function Session:close()
-    local acct = self:account()
-    local balFloor = math.floor(acct.balance)
-    local delta, rem = acct:transfer(-balFloor, false)
-    local amt = -delta
-    local receiver = self.uuid:gsub("-", "") .. "@" .. KRISTPAY_DOMAIN
-    wallet.setPendingTx(receiver, amt,  {}, false)
-    state.session = nil
-    setmetatable(self, { __index = closedSessionError })
+    -- Auto-realloc
     for id, fee in pairs(self.buyFees) do
         local pool = pools.get(id)
         if pool and fee > 0 then pool:reallocKst(fee, false) end
@@ -280,18 +322,30 @@ function Session:close()
         local pool = pools.get(id)
         if pool and fee > 0 then pool:reallocKst(fee, false) end
     end
-    wallet.state:commitMany(state, pools.state)
-    endEvent.queue(self.uuid, amt, rem)
-    wallet.sendPendingTx()
+
+    local acct = self:account()
+    if acct.persist then
+        state.session = nil
+        state:commitMany(pools.state)
+        endEvent.queue(self.uuid, 0, acct.balance)
+    else
+        local amt, rem = acct:withdraw(math.floor(acct.balance), false)
+        state.session = nil
+        wallet.state:commitMany(state, pools.state)
+        endEvent.queue(self.uuid, amt, rem)
+        wallet.sendPendingTx()
+    end
 end
 
 return {
+    ECHEST_ALLOCATION_PRICE = ECHEST_ALLOCATION_PRICE,
     startEvent = startEvent,
     endEvent = endEvent,
     buyEvent = buyEvent,
     sellEvent = sellEvent,
     sessionBalChangeEvent = sessionBalChangeEvent,
     accounts = accounts,
+    setAcct = setAcct,
     getAcctByUsername = getAcctByUsername,
     getAcctByUuid = getAcctByUuid,
     get = get,

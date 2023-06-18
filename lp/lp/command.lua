@@ -3,9 +3,11 @@ local threads = require "lp.threads"
 local pools = require "lp.pools"
 local inventory = require "lp.inventory"
 local event = require "lp.event"
+local frequencies = require "lp.frequencies"
 local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
+local wallet = require "lp.wallet"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -110,7 +112,8 @@ local function handleBuy(ctx)
             ))
             local remaining = amount
             while remaining > 0 do
-                local guard = inventory.turtleMutex.lock()
+                local guard1 = inventory.turtleMutexes[1].lock()
+                local guard2 = inventory.turtleMutex.lock()
                 turtle.select(1)
                 turtle.drop()
                 local pushed = inventory.get().pushItems(
@@ -122,7 +125,8 @@ local function handleBuy(ctx)
                 )
                 turtle.select(1)
                 turtle.drop()
-                guard.unlock()
+                guard1.unlock()
+                guard2.unlock()
                 remaining = remaining - pushed
             end
         end
@@ -169,6 +173,108 @@ local function handleInfo(ctx)
             ctx.argTokens.item
         )
     end
+end
+
+---@param ctx cbb.Context
+local function handlePersist(ctx)
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, false)
+    local persist = acct:togglePersistence(true)
+    if persist then
+        return ctx.reply({
+            text = "Your balance will now persist across sessions."
+        })
+    else
+        return ctx.reply({
+            text = "Your balance will no longer persist across sessions."
+        })
+    end
+end
+
+---@param ctx cbb.Context
+local function handleBalance(ctx)
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    return ctx.reply({
+        text = ("Your balance is %g KST"):format(acct.balance)
+    })
+end
+
+---@param ctx cbb.Context
+local function handleWithdraw(ctx)
+    local amount = ctx.args.amount
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    if acct.balance < amount then
+        return ctx.replyErr(
+            ("You don't have the %g KST needed to withdraw."):format(amount)
+        )
+    end
+    acct:withdraw(amount, true)
+    if not wallet.sendPendingTx() then
+        return ctx.replyErr(
+            "An unknown error occurred while withdrawing, please ping PG231"
+        )
+    end
+end
+
+---@param ctx cbb.Context
+local function handleFreqQuery(ctx)
+    return ctx.reply({
+        text = (
+            "The current price for an allocated frequency is %g KST. You can" ..
+            " get one by using \\lp frequency buy"
+        ):format(sessions.ECHEST_ALLOCATION_PRICE)
+    })
+end
+
+---@param ctx cbb.Context
+local function handleFreqBuy(ctx)
+    local session = sessions.get()
+
+    if not session or ctx.user ~= session.user then
+        return ctx.replyErr("Start a session first with \\lp start")
+    end
+
+    local acct = session:account()
+    if acct.storageFrequency then
+        return ctx.replyErr("You already own a frequency")
+    end
+
+    if acct.balance < sessions.ECHEST_ALLOCATION_PRICE then
+        return ctx.replyErr(
+            (
+                "You don't have the %g KST necessary to acquire a frequency"
+            ):format(sessions.ECHEST_ALLOCATION_PRICE)
+        )
+    end
+
+    local nbt, frequency = frequencies.popFrequency()
+    if not nbt or not frequency then
+        return ctx.replyErr("There are no frequencies for sale currently")
+    end
+
+    if not acct:allocFrequency(frequency, false) then
+        return ctx.replyErr("Failed to allocate")
+    end
+    acct:transfer(-sessions.ECHEST_ALLOCATION_PRICE, true)
+
+    log:info(("%s has paid %d for frequency %d"):format(
+        ctx.user, sessions.ECHEST_ALLOCATION_PRICE, frequency
+    ))
+
+    local guard1 = inventory.turtleMutexes[1].lock()
+    local guard2 = inventory.turtleMutex.lock()
+    turtle.select(1)
+    turtle.drop()
+    inventory.get().pushItems(
+        modem.getNameLocal(),
+        "sc-goodies:ender_storage",
+        1,
+        1,
+        nbt
+    )
+    turtle.select(1)
+    turtle.drop()
+    guard1.unlock()
+    guard2.unlock()
 end
 
 ---@param ctx cbb.Context
@@ -473,6 +579,28 @@ local root = cbb.literal("lp") "lp" {
         help = "Exits a session",
         execute = handleExit,
     },
+    cbb.literal("persist") "persist" {
+        help = "Toggles balance persistence on session exit",
+        execute = handlePersist,
+    },
+    cbb.literal("frequency") "frequency" {
+        help = "Displays ender storage frequency information",
+        execute = handleFreqQuery,
+        cbb.literal("buy") "buy" {
+            help = "Buys an ender storage frequency",
+            execute = handleFreqBuy,
+        },
+    },
+    cbb.literal("balance") "balance" {
+        help = "Displays your balance",
+        execute = handleBalance,
+    },
+    cbb.literal("withdraw") "withdraw" {
+        cbb.integerExpr "amount" {
+            help = "Withdraws Krist from your account",
+            execute = handleWithdraw,
+        }
+    },
     cbb.literal("rawdelta") "rawdelta" {
         cbb.numberExpr "amount" {
             execute = handleRawdelta,
@@ -531,15 +659,26 @@ threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
         local uuid, amt, rem = sessions.endEvent.pull()
-        cbb.tell(uuid, BOT_NAME, {
-            text = (
-                "Your %d KST were transferred. The remaining %g are stored "
-                    .. "in your account and will reappear in the next session."
-            ):format(
-                amt,
-                rem
-            ),
-            color = cbb.colors.WHITE,
-        })
+        if amt ~= 0 then
+            cbb.tell(uuid, BOT_NAME, {
+                text = (
+                    "Your %d KST were transferred. The remaining %g are stored "
+                        .. "in your account and will reappear in the next "
+                        .. "session."
+                ):format(
+                    amt,
+                    rem
+                ),
+            })
+        else
+            cbb.tell(uuid, BOT_NAME, {
+                text = (
+                    "Your balance of %g KST is stored in your account and will "
+                        .. "reappear in the next session."
+                ):format(
+                    rem
+                ),
+            })
+        end
     end
 end)

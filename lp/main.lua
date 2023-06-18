@@ -35,11 +35,16 @@ log:info("Starting LP store")
 
 local ok, err = xpcall(
     function()
+        -- TODO move recovery into a thread and put it as a startup dependency.
+        -- (So that it doesn't block waiting for the inventory to initialize)
+        require "lp.echest".recover()
         require "lp.wallet"
         require "lp.ui"
         require "lp.sucker"
         require "lp.logout"
         require "lp.command"
+        require "lp.rsession"
+        require "lp.frequencies"
         local threads = require "lp.threads"
         parallel.waitForAll(unpack(threads.t))
     end,
