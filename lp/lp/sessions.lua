@@ -80,7 +80,7 @@ local function setAcct(uuid, username, commit)
 
     if commit then state.commit() end
 
-    return acct
+    return setmetatable(acct, { __index = Account })
 end
 
 ---@param uuid string
