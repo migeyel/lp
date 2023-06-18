@@ -308,8 +308,8 @@ local function handleSell(uss, id, rch, uuid, sell)
         })
     end
 
-    local detail = echest.getItemDetail(freq, sell.slot) --[[yield]] account = nil
-    if not detail then
+    local ok, detail = echest.getItemDetail(freq, sell.slot) --[[yield]] account = nil
+    if not ok or not detail then
         return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
