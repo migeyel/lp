@@ -124,14 +124,14 @@ function Session:tryOpenChannel(channel)
 end
 
 function Session:updateExpiry()
-    local new = os.epoch("utc") + server.SESSION_EXPIRE_MS
+    local new = os.clock() + server.SESSION_EXPIRE_MS / 1000
     self.expiresAt = new
     self.expireListNode:delete()
     self.expireListNode = expireList:pushBack(self)
 end
 
 local function expireOldSessions()
-    local now = os.epoch("utc")
+    local now = os.clock()
     local first = expireList:first()
     while first do
         local session = first.data ---@type unet2.Session
@@ -189,7 +189,7 @@ function User:newSession(counter, nonce)
         sDesc = sDesc,
         cKey = cKey,
         sKey = sKey,
-        expiresAt = os.epoch("utc") + server.SESSION_EXPIRE_MS,
+        expiresAt = os.clock() + server.SESSION_EXPIRE_MS / 1000,
     }, SessionMt)
 
     self.allSessions[session] = true
