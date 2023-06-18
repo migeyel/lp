@@ -359,9 +359,6 @@ local function handleSell(id, rch, uuid, sell)
         })
     end
 
-    -- Status is "OK" so pullTransfer is a table.
-    pullTransfer = pullTransfer --[[@as table]]
-
     -- preparePull() yields, so the account may have been deleted in the
     -- meantime by another thread. Check that it hasn't.
     account = sessions.getAcctByUuid(uuid)
