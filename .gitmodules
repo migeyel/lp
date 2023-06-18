@@ -1,3 +1,6 @@
 [submodule "lua-ls-cc-tweaked"]
 	path = lua-ls-cc-tweaked
 	url = https://github.com/MasonGulu/lua-ls-cc-tweaked.git
+[submodule "ccryptolib"]
+	path = ccryptolib
+	url = git@github.com:migeyel/ccryptolib.git
