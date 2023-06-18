@@ -2,16 +2,16 @@ Options:Default "trace"
 
 Tasks:clean()
 
-Tasks:minify "lpc:minify" {
-    input = "build/lpc.lua",
-    output = "build/lpc.min.lua",
+Tasks:minify "unetcbundle:minify" {
+    input = "build/unetcbundle.lua",
+    output = "build/unetcbundle.min.lua",
 }
 
-Tasks:require "lpc:main" {
-    output = "build/lpc.lua",
-    startup = "lpc/lpc.lua",
+Tasks:require "unetcbundle:main" {
+    output = "build/unetcbundle.lua",
+    startup = "unetcbundle.lua",
     include = {
-        "lpc/*.lua",
+        "unetcbundle.lua",
         "lproto.lua",
         "redrun.lua",
         "unet/common/*.lua",
@@ -20,4 +20,7 @@ Tasks:require "lpc:main" {
     },
 }
 
-Tasks:Task "lpc:build" { "clean", "lpc:minify" } :Description "LPC build task"
+Tasks:Task "unetcbundle:build" {
+    "clean",
+    "unetcbundle:minify",
+} :Description "unetcbundle build task"

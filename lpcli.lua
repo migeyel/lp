@@ -1,25 +1,11 @@
-local lproto = require "lproto"
+local unetcBundle = require "unetcbundle"
+local unetc = unetcBundle.unetc
+local lproto = unetcBundle.lproto
+local rng = unetcBundle.rng
+local pprint = require "cc.pretty".pretty_print
 
+-- We set the lproto serialization schema right here.
 local proto = {}
-
----@class ProtoRequest
----@field id number?
----@field info ProtoRequestInfo?
----@field buy ProtoRequestBuy?
----@field sell ProtoRequestSell?
-
----@class ProtoRequestInfo
----@field label string?
-
----@class ProtoRequestBuy
----@field label string?
----@field slot number?
----@field amount number?
----@field maxPerItem number?
-
----@class ProtoRequestSell
----@field slot number?
----@field minPerItem string?
 
 -- A request from a client to the LP server.
 proto.Request = lproto.message {
@@ -215,4 +201,128 @@ proto.Response = lproto.message {
     failure = proto.FailureReason (2);
 }
 
-return proto
+-- My UUID :^)
+local LP_UUID = "eddfb535-16e1-4c6a-8b6e-3fcf4b85dc73"
+
+-- The channel the lp listens to
+local LP_CHANNEL = "lp"
+
+local args = { ... }
+
+local usages = {
+    register = "lpcli register <token>",
+    account = "lpcli account",
+    info = "lpcli info <pool name>",
+    buy = "lpcli buy <pool name> <slot> <amount> <price limit>",
+    sell = "lpcli sell <slot> <price limit>",
+}
+
+if not args[1] then
+    printError("Usages:")
+    for _, v in pairs(usages) do
+        printError(v)
+    end
+    return
+end
+
+if args[1] == "register" then
+    if args[2] then
+        settings.set("lpc.unet_token", args[2])
+        settings.save()
+    else
+        printError(usages.register)
+    end
+    return
+end
+
+local token = settings.get("lpc.unet_token")
+if not token then
+    printError("Please set your token first:")
+    printError("1. get the token using \\unet token")
+    printError("2. register using " .. usages.register)
+    return
+end
+
+-- Start a session
+local session = unetc.connect(token)
+local channel = rng.random(32)
+session:open(channel)
+
+local function waitForResponse()
+    while true do
+        local _, sid, uuid, ch, _, m = os.pullEvent("unet_message")
+        if sid == session:id() and uuid == LP_UUID and ch == channel then
+            local res = proto.Response.deserialize(m)
+            if res.success then
+                print("Request OK")
+                pprint(res.success)
+            else
+                printError("Request Error")
+                pprint(res.failure)
+            end
+            return
+        end
+    end
+end
+
+if args[1] == "account" then
+    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+        id = 0, -- We aren't reusing the session so the id doesn't matter.
+        account = {},
+    })
+
+    waitForResponse()
+elseif args[1] == "info" then
+    local label = args[2]
+
+    if not label then
+        printError("Usage: " .. usages.info) return session:shutdown()
+    end
+
+    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+        id = 0,
+        info = { label = label },
+    })
+
+    waitForResponse()
+elseif args[1] == "buy" then
+    local label = args[2]
+    local slot = tonumber(args[3])
+    local amount = tonumber(args[4])
+    local limit = tonumber(args[5])
+
+    if not label or not slot or not amount or not limit then
+        printError("Usage: " .. usages.buy) return session:shutdown()
+    end
+
+    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+        id = 0,
+        buy = {
+            label = label,
+            slot = math.floor(slot),
+            amount = math.floor(amount),
+            maxPerItem = limit,
+        },
+    })
+
+    waitForResponse()
+elseif args[1] == "sell" then
+    local slot = tonumber(args[2])
+    local limit = tonumber(args[3])
+
+    if not slot or not limit then
+        printError("Usage: " .. usages.sell) return session:shutdown()
+    end
+
+    session:send(LP_UUID, LP_CHANNEL, channel, proto.Request.serialize {
+        id = 0,
+        sell = {
+            slot = math.floor(slot),
+            minPerItem = limit,
+        }
+    })
+
+    waitForResponse()
+end
+
+session:shutdown()

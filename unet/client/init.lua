@@ -343,6 +343,8 @@ local function connect(token, modem, timeout)
     expect(2, modem, "table", "nil")
     expect(3, timeout, "number", "nil")
 
+    rng.init(token)
+
     -- If not given, try to find a wireless modem that already is open. 
     if not modem then
         modem = peripheral.find("modem", function(_, t)

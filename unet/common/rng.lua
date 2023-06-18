@@ -1,15 +1,5 @@
 local random = require "ccryptolib.random"
 
-local h = http.post("https://krist.dev/ws/start", "")
-local s = h.readAll()
-h.close()
-
-local o = textutils.unserializeJSON(s)
-assert(type(o) == "table" and o.ok)
-
-http.websocket(o.url).close()
-random.init(o.url)
-
 --- Returns a random UUID4
 --- @return string
 local function uuid4()
@@ -22,6 +12,7 @@ local function uuid4()
 end
 
 return {
+    init = random.init,
     random = random.random,
     uuid4 = uuid4,
 }
