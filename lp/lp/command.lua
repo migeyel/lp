@@ -229,7 +229,7 @@ end
 local function handleFreqBuy(ctx)
     local session = sessions.get()
 
-    if not session or ctx.user ~= session.user then
+    if not session or ctx.data.user.uuid ~= session.uuid then
         return ctx.replyErr("Start a session first with \\lp start")
     end
 

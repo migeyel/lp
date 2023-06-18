@@ -20,7 +20,7 @@ end
 
 local function readFile(path)
     local f = assert(fs.open(path, "rb"))
-    local s = f.readAll(path)
+    local s = f.readAll()
     f.close()
     local t, e = textutils.unserialize(s or "")
     assert(type(t) == "table", e or ("couldn't deserialize " .. path))
