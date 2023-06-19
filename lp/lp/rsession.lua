@@ -5,7 +5,7 @@ local pools = require "lp.pools"
 local echest = require "lp.echest"
 local proto = require "lp.proto"
 local unetc = require "unet.client"
-local log   = require "lp.log"
+local log = require "lp.log"
 
 local UNET_TOKEN = "03ea4cb6-11bf-4ba1-8829-2fa9a44ccc45"
 local UNET_CHANNEL = "lp"

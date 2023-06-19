@@ -75,7 +75,6 @@ local function preparePush(frequency, item, nbt, amount, slot)
     local echestGuard = echestMutex.lock()
     assert(not state.PENDING) -- The mutex should make this always true.
 
-    log:info("Preparing to push")
     setFrequency(frequency)
 
     -- Check that an output slot exists.
@@ -100,8 +99,6 @@ local function preparePush(frequency, item, nbt, amount, slot)
 
         ---@async
         rollback = function()
-            log:info("Push rollback")
-
             -- Abort, pull items back to storage.
             inventory.get().pullItems(turtleName, 16)
 
@@ -113,8 +110,6 @@ local function preparePush(frequency, item, nbt, amount, slot)
         ---@nodiscard
         ---@async
         commit = function(...)
-            log:info("Push commit")
-
             -- Commit the pending transfer along with transaction results.
             state.PENDING = { slot = slot }
             state:commitMany(...)
@@ -127,7 +122,6 @@ local function preparePush(frequency, item, nbt, amount, slot)
             state.PENDING = nil
             state.commit()
 
-            log:info("Push complete")
             echestGuard.unlock()
 
             return dumpAmt
@@ -146,13 +140,11 @@ local function preparePull(frequency, slot, item, nbt)
     local echestGuard = echestMutex.lock()
     assert(not state.PENDING) -- The mutex should make this always true.
 
-    log:info("Preparing to pull")
     setFrequency(frequency)
 
     -- Commit a pending transfer that has already been done.
     state.PENDING = { slot = slot }
     state.commit()
-    log:info("Reverse push committed")
 
     -- Pull the item.
     local turtleGuard = inventory.turtleMutexes[16].lock()
@@ -162,7 +154,7 @@ local function preparePull(frequency, slot, item, nbt)
     local detail = turtle.getItemDetail(16, true)
     local checkNbt = nbt ~= "NONE" and nbt or nil
     if not detail or detail.name ~= item or detail.nbt ~= checkNbt then
-        log:error("abort: item data mismatch")
+        log:error("pull: item data mismatch")
 
         -- Abort, pull items back to the ender chest.
         local dumpAmt = tryPull(slot, amount)
@@ -181,8 +173,6 @@ local function preparePull(frequency, slot, item, nbt)
 
         ---@async
         commit = function(...)
-            log:info("Pull commit")
-
             -- Commit the reversed transfer away along with transaction results.
             state.PENDING = nil
             state:commitMany(...)
@@ -191,7 +181,6 @@ local function preparePull(frequency, slot, item, nbt)
             inventory.get().pullItems(turtleName, 16)
             turtleGuard.unlock()
 
-            log:info("Pull complete")
             echestGuard.unlock()
         end,
 
@@ -199,8 +188,6 @@ local function preparePull(frequency, slot, item, nbt)
         ---@nodiscard
         ---@async
         rollback = function()
-            log:info("Pull rollback")
-
             -- Abort, pull items back to the ender chest.
             local dumpAmt = tryPull(slot, amount)
 
@@ -222,7 +209,7 @@ local function recover()
     log:info("Starting recovery")
 
     if state.PENDING then
-        log:info("Recovering pending transaction")
+        log:info("Recovering pending item transfer")
         if turtle.getItemCount(16) > 0 then
             -- Complete the pending transfer.
             tryPull(state.PENDING.slot, turtle.getItemCount(16))
