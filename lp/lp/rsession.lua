@@ -414,7 +414,7 @@ local function handleSell(uss, id, rch, uuid, sell)
             failure = {
                 noSuchPoolItem = dumpAmt == 0 and {
                     item = detail.name,
-                    nbt = detail.nbt,
+                    nbt = detail.nbt ~= "NONE" and detail.nbt or nil,
                 } or nil,
                 sellImproperRace = dumpAmt ~= 0 and {
                     dumped = dumpAmt,
