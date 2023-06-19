@@ -329,7 +329,7 @@ local function handleSell(uss, id, rch, uuid, sell)
             failure = {
                 noSuchPoolItem = {
                     item = item,
-                    nbt = nbt,
+                    nbt = nbt ~= "NONE" and nbt or nil,
                 },
             },
         })
