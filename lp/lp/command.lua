@@ -4,6 +4,7 @@ local pools = require "lp.pools"
 local inventory = require "lp.inventory"
 local event = require "lp.event"
 local frequencies = require "lp.frequencies"
+local inv = require "lp.inventory"
 local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
@@ -136,6 +137,35 @@ local function handleBuy(ctx)
             ctx.argTokens.item
         )
     end
+end
+
+---@param ctx cbb.Context
+local function handleSysInfo(ctx)
+    local usage = inv.get().getUsage()
+    return ctx.reply(
+            {
+                text = "LP System Info\n",
+            },
+            {
+                text = ("- Total: %g slots\n"):format(usage.total),
+            },
+            {
+                text = ("- Free: %g slots\n"):format(usage.free),
+            },
+            {
+                text = ("- Used: %g slots\n"):format(usage.used),
+            },
+            {
+                text = ("- Slot usage: %g%%\n"):format(
+                    math.floor(10000 * usage.used / usage.total) / 100
+                )
+            },
+            {
+                text = ("- Total balance (incl. unallocated): %g KST"):format(
+                    wallet.fetchBalance()
+                ),
+            }
+        )
 end
 
 ---@param ctx cbb.Context
@@ -602,6 +632,8 @@ local root = cbb.literal("lp") "lp" {
         },
     },
     cbb.literal("info") "info" {
+        help = "Displays information about the system",
+        execute = handleSysInfo,
         cbb.string "item" {
             help = "Displays information about a pool",
             execute = handleInfo,
