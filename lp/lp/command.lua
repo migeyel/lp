@@ -56,7 +56,7 @@ local function tryStartSession(ctx)
                 color = cbb.colors.WHITE,
             },
             {
-                text = "\\warp lp",
+                text = "/warp lp",
                 color = cbb.colors.GRAY,
             },
             {
