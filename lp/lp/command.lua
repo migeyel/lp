@@ -34,7 +34,8 @@ local modem = peripheral.find("modem")
 local BOT_NAME = "LP Shop"
 
 ---@param ctx cbb.Context
-local function handleStart(ctx)
+---@return Session?
+local function tryStartSession(ctx)
     local entities = sensor.sense()
     local playerHere = false
     for _, e in pairs(entities) do
@@ -65,11 +66,18 @@ local function handleStart(ctx)
         )
     end
 
-    if sessions.create(ctx.data.user.uuid, ctx.user, true) then
+    local session = sessions.create(ctx.data.user.uuid, ctx.user, true)
+    if session then
         log:info("Started a session for " .. ctx.user)
+        return session
     else
         return ctx.replyErr("Another session is already in place")
     end
+end
+
+---@param ctx cbb.Context
+local function handleStart(ctx)
+    return tryStartSession(ctx)
 end
 
 ---@param ctx cbb.Context
@@ -89,7 +97,10 @@ local function handleBuy(ctx)
     local amount = ctx.args.amount ---@type integer
 
     local session = sessions.get()
-    if not session or ctx.data.user.uuid ~= session.uuid then
+    if not session then
+        session = tryStartSession(ctx)
+        if not session then return end
+    elseif ctx.data.user.uuid ~= session.uuid then
         return ctx.replyErr("Start a session first with \\lp start")
     end
 
