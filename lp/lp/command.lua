@@ -551,6 +551,52 @@ local function handleWhatsNew(ctx)
             text = "LP Recent Changes:",
         },
         {
+            text = "\nJune 21st - ",
+            color = cbb.colors.BLUE,
+        },
+        {
+            text = "\\lp buy ",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = "now tries to start a session if possible.",
+        },
+        {
+            text = "\nJune 20th - ",
+            color = cbb.colors.BLUE,
+        },
+        {
+            text = "New commands: ",
+        },
+        {
+            text = "\\lp persist",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = ", "
+        },
+        {
+            text = "\\lp frequency",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = ", "
+        },
+        {
+            text = "\\lp balance",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = ", and "
+        },
+        {
+            text = "\\lp withdraw",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = "."
+        },
+        {
             text = "\nJune 17th - ",
             color = cbb.colors.BLUE,
         },
