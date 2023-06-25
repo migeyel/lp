@@ -65,6 +65,7 @@ local function handleInfo(uss, id, rch, uuid, info)
                 nbt = pool.nbt ~= "NONE" and pool.nbt or nil,
                 allocatedItems = pool.allocatedItems,
                 allocatedKrist = pool.allocatedKrist,
+                feeRate = pool:getFeeRate(),
             }
         }
     })

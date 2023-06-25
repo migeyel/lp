@@ -188,6 +188,9 @@ proto.Response = lproto.message {
 
             -- The amount of allocated krist in this pool
             allocatedKrist = lproto.double (5);
+
+            -- The current fee rate, as a number between 0 and 1, inclusive.
+            feeRate = lproto.double (6);
         } (1);
 
         -- A buy order has succeeded.
