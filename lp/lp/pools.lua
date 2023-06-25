@@ -172,6 +172,7 @@ end
 function Pool:setFeeRate(rate, commit)
     self.feeRate = math.max(0, rate)
     if commit then state.commit() end
+    priceChangeEvent.queue(self:id())
 end
 
 ---@param amount number
