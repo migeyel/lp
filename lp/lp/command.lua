@@ -270,6 +270,26 @@ end
 
 ---@param ctx cbb.Context
 local function handleFreqQuery(ctx)
+    local usernameOpt = ctx.args.player
+    if usernameOpt then
+        local acct = sessions.getAcctByUsername(usernameOpt)
+        if acct and acct.storageFrequency then
+            local l, m, r = util.num2Freq(acct.storageFrequency)
+            return ctx.reply({
+                text = ("%s: (%s, %s, %s)"):format(
+                    acct.username,
+                    util.colorName[l],
+                    util.colorName[m],
+                    util.colorName[r]
+                )
+            })
+        else
+            return ctx.reply({
+                text = "The account doesn't exist or has no frequency."
+            })
+        end
+    end
+
     local acct = sessions.getAcctByUuid(ctx.data.user.uuid)
     if acct and acct.storageFrequency then
         local l, m, r = util.num2Freq(acct.storageFrequency)
@@ -726,6 +746,9 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("buy") "buy" {
             help = "Buys an ender storage frequency",
             execute = handleFreqBuy,
+        },
+        cbb.string "player" {
+            execute = handleFreqQuery,
         },
     },
     cbb.literal("balance") "balance" {
