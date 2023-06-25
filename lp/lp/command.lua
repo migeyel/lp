@@ -205,7 +205,7 @@ local function handleInfo(ctx)
                 text = ("- Price: %g\n"):format(pool:midPrice()),
             },
             {
-                text = ("- Trading Fees: %g%%"):format(100 * pools.FEE_RATE),
+                text = ("- Trading Fees: %g%%"):format(100 * pool:getFeeRate()),
             }
         )
     else
@@ -366,6 +366,22 @@ local function handleRawdelta(ctx)
     })
 
     session:transfer(amount, true)
+end
+
+local function handleFeeRate(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+    local rate = ctx.args.rate ---@type number
+
+    local pool = pools.getByTag(label)
+    if pool then
+        pool:setFeeRate(rate, true)
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
 end
 
 local function arbHelper(pool, amt, otherPrice)
@@ -725,6 +741,13 @@ local root = cbb.literal("lp") "lp" {
     cbb.literal("rawdelta") "rawdelta" {
         cbb.numberExpr "amount" {
             execute = handleRawdelta,
+        }
+    },
+    cbb.literal("feerate") "feerate" {
+        cbb.string "item" {
+            cbb.numberExpr "rate" {
+                execute = handleFeeRate,
+            }
         }
     },
     cbb.literal("alloc") "alloc" {

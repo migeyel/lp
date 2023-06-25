@@ -35,6 +35,7 @@ end
 ---@field allocatedItems number
 ---@field allocatedKrist number
 ---@field tag string
+---@field feeRate number?
 local Pool = {}
 
 ---@param id string
@@ -161,6 +162,18 @@ function Pool:remove(commit)
     if commit then state.commit() end
 end
 
+---@return number
+function Pool:getFeeRate()
+    return self.feeRate or FEE_RATE
+end
+
+---@param rate number
+---@param commit boolean
+function Pool:setFeeRate(rate, commit)
+    self.feeRate = math.max(0, rate)
+    if commit then state.commit() end
+end
+
 ---@param amount number
 ---@return number
 function Pool:buyPrice(amount)
@@ -182,13 +195,13 @@ end
 ---@param amount number
 ---@return number
 function Pool:buyFee(amount)
-    return self:buyPrice(amount) * FEE_RATE
+    return self:buyPrice(amount) * self:getFeeRate()
 end
 
 ---@param amount number
 ---@return number
 function Pool:sellFee(amount)
-    return self:sellPrice(amount) * FEE_RATE
+    return self:sellPrice(amount) * self:getFeeRate()
 end
 
 ---@return number
