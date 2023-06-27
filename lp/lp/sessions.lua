@@ -6,6 +6,8 @@ local util = require "lp.util"
 local pools = require "lp.pools"
 local wallet = require "lp.wallet"
 
+local PG231 = "eddfb535-16e1-4c6a-8b6e-3fcf4b85dc73"
+
 ---@type table<string, Account|nil>
 state.accounts = state.accounts or {}
 
@@ -317,14 +319,11 @@ function Session:sell(pool, amount, commit)
 end
 
 function Session:close()
-    -- Auto-realloc
-    for id, fee in pairs(self.buyFees) do
-        local pool = pools.get(id)
-        if pool and fee > 0 then pool:reallocKst(fee, false) end
+    for _, fee in pairs(self.buyFees) do
+        if fee > 0 then assert(getAcctByUuid(PG231)):transfer(fee, false) end
     end
-    for id, fee in pairs(self.sellFees) do
-        local pool = pools.get(id)
-        if pool and fee > 0 then pool:reallocKst(fee, false) end
+    for _, fee in pairs(self.sellFees) do
+        if fee > 0 then assert(getAcctByUuid(PG231)):transfer(fee, false) end
     end
 
     local acct = self:account()
@@ -342,6 +341,7 @@ function Session:close()
 end
 
 return {
+    PG231 = PG231,
     ECHEST_ALLOCATION_PRICE = ECHEST_ALLOCATION_PRICE,
     startEvent = startEvent,
     endEvent = endEvent,

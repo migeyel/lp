@@ -246,7 +246,8 @@ local function handleBuy(uss, id, rch, uuid, buy)
     -- Execute the transaction.
     account:transfer(-buyPriceWithFee, false)
     pool:reallocItems(-pushTransfer.amount, false)
-    pool:reallocKst(buyPriceWithFee, false) -- Auto-realloc
+    pool:reallocKst(buyPriceNoFee, false)
+    assert(sessions.getAcctByUuid(sessions.PG231)):transfer(buyFee, false)
 
     local orderExecution = {
         amount = pushTransfer.amount,
@@ -448,7 +449,8 @@ local function handleSell(uss, id, rch, uuid, sell)
 
     account:transfer(sellPriceWithFee, false)
     pool:reallocItems(pullTransfer.amount, false)
-    pool:reallocKst(-sellPriceWithFee, false) -- Auto-realloc
+    pool:reallocKst(-sellPriceNoFee, false)
+    assert(sessions.getAcctByUuid(sessions.PG231)):transfer(sellFee, false)
 
     local response = proto.Response.serialize {
         id = id,
