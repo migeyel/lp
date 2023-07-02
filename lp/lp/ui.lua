@@ -18,7 +18,7 @@ mon.setPaletteColor(greenlite, 184 / 255, 255 / 255, 176 / 255)
 
 local main = basalt.createFrame():setMonitor(peripheral.getName(mon), 0.5)
 
-local MID_FRAME_SIZE = 18
+local MID_FRAME_SIZE = 34
 local PRICE_WIDTH = 10
 local AMOUNTS_TO_QUOTE_PRICES_AT = { 1, 8, 64, 512 }
 
