@@ -32,6 +32,8 @@ local function audit()
     end
 
     local ok = true
+    local underAllocations = {}
+    local overAllocations = {}
     for poolId, pool in pools.pools() do
         local item, nbt = poolId:match("([^~]+)~([^~]+)")
         local allocated = pool.allocatedItems
@@ -45,8 +47,29 @@ local function audit()
         putStr("\tk = " .. allocated * pool.allocatedKrist)
         if allocated > stored then
             putStr("Storage doesn't meet allocation for pool ".. poolId)
+            overAllocations[#overAllocations + 1] = {
+                pool.label,
+                allocated,
+                stored,
+            }
             ok = false
+        elseif allocated < stored then
+            underAllocations[#underAllocations + 1] = {
+                pool.label,
+                allocated,
+                stored,
+            }
         end
+    end
+
+    putStr(("%g Under-allocations"):format(#underAllocations))
+    for _, v in pairs(underAllocations) do
+        putStr(("Pool %s: %d allocated, %d stored"):format(unpack(v)))
+    end
+
+    putStr(("%g Over-allocations"):format(#overAllocations))
+    for _, v in pairs(overAllocations) do
+        putStr(("Pool %s: %d allocated, %d stored"):format(unpack(v)))
     end
 
     local balance = wallet.fetchBalance()
