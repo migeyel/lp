@@ -1,4 +1,3 @@
-local cjson = require "cjson"
 local threads = require "lp.threads"
 local pools = require "lp.pools"
 local util = require "lp.util"
