@@ -450,9 +450,9 @@ local function safeListenerEntrypoint()
     end
 end
 
-threads.register(juaThread)
-threads.register(keepaliveHandler)
 threads.register(hearbeatWatchdog)
+threads.register(keepaliveHandler)
+threads.register(juaThread)
 threads.register(safeListenerEntrypoint)
 
 threads.registerStartup(walletReadyEvent.pull)
