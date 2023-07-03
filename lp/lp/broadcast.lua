@@ -12,8 +12,6 @@ end
 
 local function collect()
     local out = {
-        _comment = "REMOTE: Be sure to check prices through the API before "
-            .. "acting on them",
         type = "ShopSync",
         info = {
             name = "PG231's Liquidity Pools",
