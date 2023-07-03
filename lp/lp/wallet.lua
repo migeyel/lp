@@ -341,7 +341,7 @@ local ownTxEvent = event.register()
 local keepaliveEvent = event.register()
 local walletReadyEvent = event.register()
 
-local lastHeartbeat = os.epoch("utc")
+local lastHeartbeat = nil
 
 local function keepaliveHandler()
     while true do
@@ -391,6 +391,7 @@ local function handleOwnTx(ev)
 end
 
 local function hearbeatWatchdog()
+    lastHeartbeat = os.epoch("utc")
     while true do
         sleep((SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat) / 1000)
         if os.epoch("utc") - lastHeartbeat > SOCKET_MAX_IDLE_MS then
