@@ -45,6 +45,7 @@ local ok, err = xpcall(
         require "lp.command"
         require "lp.rsession"
         require "lp.frequencies"
+        require "lp.broadcast"
         local threads = require "lp.threads"
         parallel.waitForAll(unpack(threads.t))
     end,
