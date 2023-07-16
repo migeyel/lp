@@ -128,7 +128,7 @@ local function handlePay(ctx)
     end
 
     local trueAmount = sender:transfer(-amount, false)
-    receiver:transfer(trueAmount, true)
+    receiver:transfer(-trueAmount, true)
 
     TransferReceivedEvent.queue(
         receiver.uuid,
