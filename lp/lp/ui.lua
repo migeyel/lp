@@ -20,7 +20,7 @@ local main = basalt.createFrame():setMonitor(peripheral.getName(mon), 0.5)
 
 local MID_FRAME_SIZE = 34
 local PRICE_WIDTH = 10
-local AMOUNTS_TO_QUOTE_PRICES_AT = { 1, 8, 64, 512 }
+local AMOUNTS_TO_QUOTE_PRICES_AT = { 1, 8, 64, 512, 4096 }
 
 local titleBar = main:addFrame("titleBar")
     :setSize("parent.w", 5)
