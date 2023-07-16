@@ -130,7 +130,7 @@ local function handlePay(ctx)
     local trueAmount = sender:transfer(-amount, false)
     receiver:transfer(trueAmount, true)
 
-    TransferReceivedEvent.queue(receiver.uuid, sender.username, -trueAmount)
+    TransferReceivedEvent.queue(receiver.uuid, ctx.data.user, -trueAmount)
 end
 
 ---@param ctx cbb.Context
