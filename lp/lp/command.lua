@@ -91,6 +91,48 @@ local function handleExit(ctx)
     end
 end
 
+-- receiver uuid: string
+-- sender: string (username or krist address)
+-- amount: number
+local TransferReceivedEvent = event.register()
+
+---@param ctx cbb.Context
+local function handlePay(ctx)
+    local receiver = sessions.getAcctByUsername(ctx.args.receiver)
+    local amount = util.mFloor(ctx.args.amount)
+
+    if not receiver then
+        return ctx.replyErr(
+            "That user has no account in the LP.",
+            ctx.argTokens.receiver
+        )
+    end
+
+    local sender = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    if sender.balance < amount then
+        return ctx.replyErr(
+            ("You don't have the %g KST needed to pay."):format(amount)
+        )
+    end
+    if amount == 0 then
+        return ctx.replyErr(
+            "You can't pay 0 KST.",
+            ctx.argTokens.amount
+        )
+    end
+    if amount < 0 then
+        return ctx.replyErr(
+            "I'm not falling for that trick again.",
+            ctx.argTokens.amount
+        )
+    end
+
+    local trueAmount = sender:transfer(-amount, false)
+    receiver:transfer(trueAmount, true)
+
+    TransferReceivedEvent.queue(receiver.uuid, sender.username, trueAmount)
+end
+
 ---@param ctx cbb.Context
 local function handleBuy(ctx)
     local label = ctx.args.item ---@type string
@@ -741,6 +783,14 @@ local root = cbb.literal("lp") "lp" {
         help = "Exits a session",
         execute = handleExit,
     },
+    cbb.literal("pay") "pay" {
+        cbb.string "receiver" {
+            cbb.numberExpr "amount" {
+                help = "Transfers Krist in your LP balance to someone else",
+                execute = handlePay,
+            },
+        },
+    },
     cbb.literal("persist") "persist" {
         help = "Toggles balance persistence on session exit",
         execute = handlePersist,
@@ -852,5 +902,26 @@ threads.register(function()
                 ),
             })
         end
+    end
+end)
+
+threads.register(function()
+    ChatboxReadyEvent.pull()
+    while true do
+        local uuid, sender, amt = TransferReceivedEvent.pull()
+        cbb.tell(uuid, BOT_NAME,
+            {
+                text = assert(sender),
+                color = cbb.colors.AQUA,
+            },
+            {
+                text = " sent you ",
+                color = cbb.colors.GREEN,
+            },
+            {
+                text = ("%g KST"):format(amt),
+                color = cbb.colors.YELLOW,
+            }
+        )
     end
 end)
