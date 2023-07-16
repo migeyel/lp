@@ -24,7 +24,7 @@ end
 state.session = nil
 state.commit()
 
-local ECHEST_ALLOCATION_PRICE = 10
+local ECHEST_ALLOCATION_PRICE = 20
 
 -- uuid: string
 local startEvent = event.register()
