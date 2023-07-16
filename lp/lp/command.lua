@@ -135,6 +135,29 @@ local function handlePay(ctx)
         ctx.data.user.displayName,
         -trueAmount
     )
+
+    return ctx.reply(
+        {
+            text = "Success!",
+            color = cbb.colors.DARK_GREEN,
+        },
+        {
+            text = " paid ",
+            color = cbb.colors.GREEN,
+        },
+        {
+            text = ("%g KST"):format(-trueAmount),
+            color = cbb.colors.YELLOW,
+        },
+        {
+            text = " to ",
+            color = cbb.colors.GREEN,
+        },
+        {
+            text = ctx.args.receiver,
+            color = cbb.colors.AQUA,
+        }
+    )
 end
 
 ---@param ctx cbb.Context
