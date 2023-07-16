@@ -319,10 +319,16 @@ function Session:sell(pool, amount, commit)
 end
 
 function Session:close()
-    for _, fee in pairs(self.buyFees) do
-        if fee > 0 then assert(getAcctByUuid(PG231)):transfer(fee, false) end
+    for id, fee in pairs(self.buyFees) do
+        if fee > 0 then
+            local pool = pools.get(id)
+            if pool then pools.priceChangeEvent.queue(pool:id()) end
+            assert(getAcctByUuid(PG231)):transfer(fee, false)
+        end
     end
-    for _, fee in pairs(self.sellFees) do
+    for id, fee in pairs(self.sellFees) do
+        local pool = pools.get(id)
+        if pool then pools.priceChangeEvent.queue(pool:id()) end
         if fee > 0 then assert(getAcctByUuid(PG231)):transfer(fee, false) end
     end
 
