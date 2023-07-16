@@ -98,7 +98,7 @@ local TransferReceivedEvent = event.register()
 
 ---@param ctx cbb.Context
 local function handlePay(ctx)
-    local receiver = sessions.getAcctByUsername(ctx.args.receiver)
+    local receiver = sessions.getAcctByUsername(ctx.args.receiver:lower())
     local amount = util.mFloor(ctx.args.amount)
 
     if not receiver then
