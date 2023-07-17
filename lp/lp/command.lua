@@ -222,27 +222,48 @@ end
 ---@param ctx cbb.Context
 local function handleSysInfo(ctx)
     local usage = inv.get().getUsage()
+    local totalKrist = wallet.fetchBalance()
+    local allocPools = pools.totalKrist()
+    local allocAccts = sessions.totalBalances()
+    local unalloc = totalKrist - allocPools - allocAccts
     return ctx.reply(
             {
                 text = "LP System Info\n",
             },
             {
-                text = ("- Total: %g slots\n"):format(usage.total),
+                text = ("- Inventory: %g slots\n"):format(usage.total),
             },
             {
-                text = ("- Free: %g slots\n"):format(usage.free),
+                text = ("  - Used: %g slots (%g%%)\n"):format(
+                    usage.used,
+                    util.mRound(100 * usage.used / usage.total)
+                ),
             },
             {
-                text = ("- Used: %g slots\n"):format(usage.used),
+                text = ("  - Free: %g (%g%%)\n"):format(
+                    usage.free,
+                    util.mRound(100 * usage.free / usage.total)
+                ),
             },
             {
-                text = ("- Slot usage: %g%%\n"):format(
-                    math.floor(10000 * usage.used / usage.total) / 100
-                )
+                text = ("- Balance: %g KST\n"):format(totalKrist),
             },
             {
-                text = ("- Total balance (incl. unallocated): %g KST"):format(
-                    wallet.fetchBalance()
+                text = ("  - Allocated to accounts: %g (%g%%)\n"):format(
+                    allocAccts,
+                    util.mRound(100 * allocAccts / totalKrist)
+                ),
+            },
+            {
+                text = ("  - Allocated to pools: %g (%g%%)\n"):format(
+                    allocPools,
+                    util.mRound(100 * allocPools / totalKrist)
+                ),
+            },
+            {
+                text = ("  - Unallocated: %g (%g%%)"):format(
+                    unalloc,
+                    util.mRound(100 * unalloc / totalKrist)
                 ),
             }
         )

@@ -13,6 +13,8 @@ local util = require "lp.util"
 
 local mFloor, mCeil, mRound = util.mFloor, util.mCeil, util.mRound
 
+local poolKristSum = 0
+
 ---@type table<string, Pool|nil>
 state.pools = state.pools or {}
 
@@ -26,6 +28,7 @@ local poolTags = {}
 for _, p in pairs(state.pools) do
     local tag = p.label:gsub(" ", ""):lower()
     poolTags[tag] = p
+    poolKristSum = poolKristSum + p.allocatedKrist
 end
 
 ---@class Pool
@@ -77,6 +80,7 @@ local function create(label, itemName, nbt, numItems, numKrist, commit)
     local id = Pool.id(pool)
     if state.pools[id] then return nil, "pool already exists" end
     state.pools[id] = pool
+    poolKristSum = poolKristSum + numKrist
     if commit then state.commit() end
 
     return setmetatable(pool, { __index = Pool }), nil
@@ -131,7 +135,9 @@ end
 ---@param commit boolean
 function Pool:reallocKst(delta, commit)
     delta = math.max(delta, -self.allocatedKrist)
+    poolKristSum = poolKristSum - self.allocatedKrist
     self.allocatedKrist = self.allocatedKrist + delta
+    poolKristSum = poolKristSum + self.allocatedKrist
     if commit then state.commit() end
     priceChangeEvent.queue(self:id())
 end
@@ -150,7 +156,9 @@ function Pool:reallocBalanced(itemDelta, commit)
     itemDelta = math.max(itemDelta, -self.allocatedItems + 1)
     local kDelta = mRound(itemDelta * self.allocatedKrist / self.allocatedItems)
     self.allocatedItems = self.allocatedItems + itemDelta
+    poolKristSum = poolKristSum - self.allocatedKrist
     self.allocatedKrist = self.allocatedKrist + kDelta
+    poolKristSum = poolKristSum + self.allocatedKrist
     if commit then state.commit() end
     priceChangeEvent.queue(self:id())
 end
@@ -210,6 +218,10 @@ function Pool:midPriceUnrounded()
     return self.allocatedKrist / self.allocatedItems
 end
 
+local function totalKrist()
+    return poolKristSum
+end
+
 return {
     priceChangeEvent = priceChangeEvent,
     create = create,
@@ -217,6 +229,7 @@ return {
     getByTag = getByTag,
     categories = categories,
     pools = pools,
+    totalKrist = totalKrist,
     state = state,
     FEE_RATE = FEE_RATE,
 }

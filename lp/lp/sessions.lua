@@ -8,6 +8,8 @@ local wallet = require "lp.wallet"
 
 local PG231 = "eddfb535-16e1-4c6a-8b6e-3fcf4b85dc73"
 
+local accountBalanceSum = 0
+
 ---@type table<string, Account|nil>
 state.accounts = state.accounts or {}
 
@@ -18,6 +20,7 @@ for _, v in pairs(state.accounts) do
     if v.uuid then
         uuidIndex[v.username] = v.uuid
     end
+    accountBalanceSum = accountBalanceSum + v.balance
 end
 
 ---@type Session|nil
@@ -140,7 +143,9 @@ end
 ---@return number newBal The remaining balance of the account.
 function Account:transfer(delta, commit)
     delta = math.max(delta, -self.balance)
+    accountBalanceSum = accountBalanceSum - self.balance
     self.balance = util.mFloor(self.balance + delta)
+    accountBalanceSum = accountBalanceSum + self.balance
     if commit then state.commit() end
     local session = state.session
     if session and session:account() == self then
@@ -170,7 +175,9 @@ end
 ---@return boolean
 function Account:tryTransfer(delta, commit)
     if self.balance < -delta then return false end
+    accountBalanceSum = accountBalanceSum - self.balance
     self.balance = self.balance + delta
+    accountBalanceSum = accountBalanceSum + self.balance
     if commit then state.commit() end
     local session = state.session
     if session and session:account() == self then
@@ -346,6 +353,10 @@ function Session:close()
     end
 end
 
+local function totalBalances()
+    return accountBalanceSum
+end
+
 return {
     PG231 = PG231,
     ECHEST_ALLOCATION_PRICE = ECHEST_ALLOCATION_PRICE,
@@ -360,5 +371,6 @@ return {
     getAcctByUuid = getAcctByUuid,
     get = get,
     create = create,
+    totalBalances = totalBalances,
     state = state,
 }
