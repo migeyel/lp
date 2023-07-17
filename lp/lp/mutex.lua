@@ -2,7 +2,7 @@ local event = require "lp.event"
 
 return function()
     local slot = nil
-    local releaseEvent = event.register()
+    local releaseEvent = event.register("mutex_release")
 
     ---@class Mutex
     local mutex = {}

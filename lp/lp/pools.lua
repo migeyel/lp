@@ -20,7 +20,7 @@ state.pools = state.pools or {}
 state.categories = state.categories or {}
 
 -- id: string
-local priceChangeEvent = event.register()
+local priceChangeEvent = event.register("price_change")
 
 local poolTags = {}
 for _, p in pairs(state.pools) do

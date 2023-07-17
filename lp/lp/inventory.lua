@@ -4,9 +4,12 @@ local log = require "lp.log"
 
 local invStartupMutex = mutex()
 local inv = nil
+local started = false
 
 ---@return AbstractInventory
 local function get()
+    if started then return inv end
+
     local guard = invStartupMutex.lock()
     if inv then
         guard.unlock()
@@ -37,7 +40,9 @@ local function get()
     log:info("Inventory ready")
     inv = linv
 
+    started = true
     guard.unlock()
+
     return linv
 end
 

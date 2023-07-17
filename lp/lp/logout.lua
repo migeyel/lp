@@ -10,7 +10,7 @@ local SESSION_TIMEOUT_MS = 90000
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 
-local sessionPlayerAbsentEvent = event.register()
+local sessionPlayerAbsentEvent = event.register("session_player_absent")
 
 threads.register(function()
     while true do

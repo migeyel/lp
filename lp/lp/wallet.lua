@@ -336,10 +336,10 @@ local function fetchBalance()
     return ok and data.balance
 end
 
-local socketReadyEvent = event.register()
-local ownTxEvent = event.register()
-local keepaliveEvent = event.register()
-local walletReadyEvent = event.register()
+local socketReadyEvent = event.register("socket_ready")
+local ownTxEvent = event.register("own_tx")
+local keepaliveEvent = event.register("keepalive")
+local walletReadyEvent = event.register("wallet_ready")
 
 local lastHeartbeat = nil
 

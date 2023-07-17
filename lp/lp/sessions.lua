@@ -27,21 +27,21 @@ state.commit()
 local ECHEST_ALLOCATION_PRICE = 20
 
 -- uuid: string
-local startEvent = event.register()
+local startEvent = event.register("session_start")
 
 -- uuid: string
 -- transferred: number
 -- remaining: number
-local endEvent = event.register()
+local endEvent = event.register("session_end")
 
 -- id: string
-local buyEvent = event.register()
+local buyEvent = event.register("session_buy")
 
 -- id: string
-local sellEvent = event.register()
+local sellEvent = event.register("session_sell")
 
 -- uuid: string
-local sessionBalChangeEvent = event.register()
+local sessionBalChangeEvent = event.register("session_bal_change")
 
 local mFloor, mCeil = util.mFloor, util.mCeil
 

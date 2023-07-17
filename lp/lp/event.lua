@@ -9,9 +9,10 @@ local ids = setmetatable({}, { __mode = "k" })
 local n = 0
 
 ---@return Event
-local function register()
+local function register(name)
     n = n + 1
     local id = "lb_event_" .. n
+    if name then id = id .. "_" .. name end
 
     ---@class Event
     local event = {}

@@ -94,7 +94,7 @@ end
 -- receiver uuid: string
 -- sender: string (username or krist address)
 -- amount: number
-local TransferReceivedEvent = event.register()
+local TransferReceivedEvent = event.register("transfer_received")
 
 ---@param ctx cbb.Context
 local function handlePay(ctx)
@@ -867,7 +867,7 @@ local root = cbb.literal("lp") "lp" {
     }
 }
 
-local ChatboxReadyEvent = event.register()
+local ChatboxReadyEvent = event.register("chatbox_ready")
 
 threads.register(function()
     log:info("Starting chatbox")
