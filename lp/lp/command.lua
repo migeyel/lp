@@ -240,7 +240,7 @@ local function handleSysInfo(ctx)
                 ),
             },
             {
-                text = ("  - Free: %g (%g%%)\n"):format(
+                text = ("  - Free: %g slots (%g%%)\n"):format(
                     usage.free,
                     util.mRound(100 * usage.free / usage.total)
                 ),
@@ -249,19 +249,19 @@ local function handleSysInfo(ctx)
                 text = ("- Balance: %g KST\n"):format(totalKrist),
             },
             {
-                text = ("  - Allocated to accounts: %g (%g%%)\n"):format(
+                text = ("  - Allocated to accounts: %g KST (%g%%)\n"):format(
                     allocAccts,
                     util.mRound(100 * allocAccts / totalKrist)
                 ),
             },
             {
-                text = ("  - Allocated to pools: %g (%g%%)\n"):format(
+                text = ("  - Allocated to pools: %g KST (%g%%)\n"):format(
                     allocPools,
                     util.mRound(100 * allocPools / totalKrist)
                 ),
             },
             {
-                text = ("  - Unallocated: %g (%g%%)"):format(
+                text = ("  - Unallocated: %g KST (%g%%)"):format(
                     unalloc,
                     util.mRound(100 * unalloc / totalKrist)
                 ),
