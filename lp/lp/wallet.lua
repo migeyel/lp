@@ -277,6 +277,7 @@ local function reallocateRounding(delta, commit)
 end
 
 local function checkTotalout()
+    log:info("Starting totalout check")
     local ok1, ok2, data = pcall(jua.await, k.address, address)
     if ok1 and ok2 then
         if state.totalout then
@@ -290,14 +291,24 @@ local function checkTotalout()
                 )
             end
 
-            -- Recover the pending transaction.
-            -- This can fail if a transaction with the exact same amount is sent
-            -- by someone else, which really really really shouldn't happen.
             if data.totalout == outN and state.pendingout ~= 0 then
+                -- Recover the pending transaction. This can fail if a
+                -- transaction with the exact same amount is sent to someone
+                -- else, which really really really shouldn't happen.
                 log:info("Recovering pending transaction")
                 sendPendingTx()
+            elseif data.totalout == outP then
+                -- Throw the pending transaction away, since it was confirmed.
+                log:info("Discarding pending transaction")
+                state.totalout = data.totalout
+                state.pendingout = 0
+                state.PENDING = nil
+                state.commit()
+            else
+                log:info("Nothing to do")
             end
         else
+            log:info("There's no state totalout")
             state.totalout = data.totalout
             state.commit()
         end
