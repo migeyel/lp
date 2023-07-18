@@ -1,11 +1,11 @@
 --- Shop wallet management.
 
 local config = require "lp.setup"
-local state = require "lp.state".open "lp.wallet"
 local util = require "lp.util"
 local log = require "lp.log"
 local event = require "lp.event"
 local threads = require "lp.threads"
+local mutex = require "lp.mutex"
 local jua = require "jua"
 local w = require "w"
 local r = require "r"
@@ -14,9 +14,21 @@ local k = require "k"
 local ROUNDING_BIAS = 0.01
 local SOCKET_MAX_IDLE_MS = 30000
 
+---@class WalletPending
+---@field to string
+---@field amount number
+---@field meta string
+
+---@class WalletState: State
+---@field PENDING WalletPending
+---@field pendingout number
+---@field roundingFund number
+
+local state = require "lp.state".open "lp.wallet" --[[@as WalletState]]
 state.pendingout = state.pendingout or 0
 state.roundingFund = state.roundingFund or 0
-state.commit()
+
+local pendingTxMutex = mutex()
 
 local function getRoundingFund()
     return state.roundingFund
@@ -67,13 +79,15 @@ local function setPendingTx(receiver, amount, cm, commit)
         log:error("Rejected for being self-send")
         return
     end
+
     if amount <= 0 then
         log:error("Rejected for being <= 0")
         return
     end
-    if state.PENDING then
-        log:error("Rejected because of existing pending tx")
-    end
+
+    pendingTxMutex.lock()
+    assert(not state.PENDING)
+
     local valid, named = isValidAddress(receiver)
     if not valid then
         log:error("Rejected for not being a valid receiver")
@@ -125,7 +139,6 @@ local function setPendingTx(receiver, amount, cm, commit)
     state.PENDING = {
         to = receiver,
         amount = sendAmt,
-        idempotencyToken = tostring(math.random(0, 2 ^ 31 - 2)),
         meta = table.concat(metaBuf, ";"),
     }
 
@@ -158,6 +171,7 @@ local function sendPendingTx()
         state.pendingout = 0
         state.PENDING = nil
         state.commit()
+        pendingTxMutex.unlock()
         return true
     else
         log:error("Tx K" .. state.PENDING.amount .. " to "
@@ -165,6 +179,7 @@ local function sendPendingTx()
         state.pendingout = 0
         state.PENDING = nil
         state.commit()
+        pendingTxMutex.unlock()
         return false
     end
 end
@@ -440,7 +455,10 @@ local function safeListenerEntrypoint()
 
         -- Perform checks.
         function()
+            pendingTxMutex.lock()
             checkTotalout()
+            pendingTxMutex.unlock()
+
             checkLastseen()
 
             -- Flush queue.

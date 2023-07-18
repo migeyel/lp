@@ -27,8 +27,10 @@ local function readFile(path)
     return t
 end
 
+---@param t table
+---@return table
 local function copy(t)
-    return textutils.unserialize(textutils.serialize(t))
+    return textutils.unserialize(textutils.serialize(t)) --[[@as table]]
 end
 
 local PATH = "/lp.lst"
@@ -61,7 +63,7 @@ local function open(index)
 
         --- Commits several states atomically.
         commitMany = function(...)
-            for i, v in pairs({ ... }) do mainState[v._index] = copy(v) end
+            for _, v in pairs({ ... }) do mainState[v._index] = copy(v) end
             writeFile(NEW_PATH, mainState)
             fs.delete(PATH)
             fs.move(NEW_PATH, PATH)
@@ -70,6 +72,10 @@ local function open(index)
 
     return setmetatable(out, { __index = mtIdx })
 end
+
+---@class State
+---@field commit fun() Commits this state to disk.
+---@field commitMany fun(State...) Commits several states atomically to disk.
 
 return {
     open = open,

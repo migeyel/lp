@@ -7,6 +7,13 @@ return function()
     ---@class Mutex
     local mutex = {}
 
+    function mutex.unlock()
+        if slot then
+            slot = nil
+            releaseEvent.queue()
+        end
+    end
+
     ---@return MutexGuard
     function mutex.lock()
         while slot do
