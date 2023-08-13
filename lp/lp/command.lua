@@ -114,12 +114,6 @@ local function handlePay(ctx)
             ("You don't have the %g KST needed to pay."):format(amount)
         )
     end
-    if amount == 0 then
-        return ctx.replyErr(
-            "You can't pay 0 KST.",
-            ctx.argTokens.amount
-        )
-    end
     if amount < 0 then
         return ctx.replyErr(
             "I'm not falling for that trick again.",
@@ -779,6 +773,10 @@ local function handleWhatsNew(ctx)
         }
     )
 end
+
+local recursiveWrongPool = {
+    
+}
 
 local root = cbb.literal("lp") "lp" {
     cbb.literal("help") "help" {
