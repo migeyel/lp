@@ -430,7 +430,7 @@ local function kristStartupCheck()
         kristUpEvent.queue()
         isKristUp = true
     else
-        log:info("krist seems down, will error and reboot when it's back")
+        log:warn("Krist seems down, will error and reboot when it's back")
         while not http.get("https://krist.dev/") do
             sleep(10)
         end
@@ -518,6 +518,6 @@ return {
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,
     fetchBalance = fetchBalance,
-    isKristUp = isKristUp,
+    getIsKristUp = getIsKristUp,
     state = state,
 }

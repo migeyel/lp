@@ -344,7 +344,7 @@ local function handleWithdraw(ctx)
             ctx.argTokens.amount
         )
     end
-    if not wallet.isKristUp() then
+    if not wallet.getIsKristUp() then
         return ctx.replyErr(
             "Krist seems currently down, please try again later."
         )
