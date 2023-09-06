@@ -34,6 +34,12 @@ local function getRoundingFund()
     return state.roundingFund
 end
 
+local isKristUp = false
+
+local function getIsKristUp()
+    return isKristUp
+end
+
 -- Check if the pkey has changed.
 if state.pkey ~= config.pkey then
     log:info("Private key has changed from previous run")
@@ -70,6 +76,8 @@ end
 ---@param cm table
 ---@param commit boolean
 local function setPendingTx(receiver, amount, cm, commit)
+    assert(isKristUp, "can't send while krist is down")
+
     log:info(("Now starting to process sending K%d to %s"):format(
         amount,
         receiver
@@ -362,6 +370,7 @@ local function fetchBalance()
     return ok and data.balance
 end
 
+local kristUpEvent = event.register("krist_up")
 local socketReadyEvent = event.register("socket_ready")
 local ownTxEvent = event.register("own_tx")
 local keepaliveEvent = event.register("keepalive")
@@ -416,7 +425,21 @@ local function handleOwnTx(ev)
     end
 end
 
+local function kristStartupCheck()
+    if http.get("https://krist.dev/") then
+        kristUpEvent.queue()
+        isKristUp = true
+    else
+        log:info("krist seems down, will error and reboot when it's back")
+        while not http.get("https://krist.dev/") do
+            sleep(10)
+        end
+        error("purposeful error for rebooting into krist-up mode")
+    end
+end
+
 local function hearbeatWatchdog()
+    kristUpEvent.pull()
     lastHeartbeat = os.epoch("utc")
     while true do
         sleep((SOCKET_MAX_IDLE_MS - os.epoch("utc") + lastHeartbeat) / 1000)
@@ -431,6 +454,7 @@ local function hearbeatWatchdog()
 end
 
 local function juaThread()
+    kristUpEvent.pull()
     jua.go(function()
         local socket = select(2, assert(jua.await(k.connect, state.pkey)))
         log:info("Socket open")
@@ -480,12 +504,11 @@ local function safeListenerEntrypoint()
     end
 end
 
+threads.register(kristStartupCheck)
 threads.register(hearbeatWatchdog)
 threads.register(keepaliveHandler)
 threads.register(juaThread)
 threads.register(safeListenerEntrypoint)
-
-threads.registerStartup(walletReadyEvent.pull)
 
 return {
     address = address,
@@ -495,5 +518,6 @@ return {
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,
     fetchBalance = fetchBalance,
+    isKristUp = isKristUp,
     state = state,
 }

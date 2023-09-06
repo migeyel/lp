@@ -344,10 +344,15 @@ local function handleWithdraw(ctx)
             ctx.argTokens.amount
         )
     end
+    if not wallet.isKristUp() then
+        return ctx.replyErr(
+            "Krist seems currently down, please try again later."
+        )
+    end
     local amt, _ = acct:withdraw(amount, true)
     if amt ~= 0 and not wallet.sendPendingTx() then
         return ctx.replyErr(
-            "An unknown error occurred while withdrawing, please ping PG231"
+            "An unknown error occurred while withdrawing, please ping PG231."
         )
     end
 end

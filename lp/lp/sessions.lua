@@ -340,7 +340,7 @@ function Session:close()
     end
 
     local acct = self:account()
-    if acct.persist then
+    if acct.persist or not wallet.isKristUp() then
         state.session = nil
         state:commitMany(pools.state)
         endEvent.queue(self.uuid, 0, acct.balance)
