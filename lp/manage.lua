@@ -72,6 +72,7 @@ local function audit()
         putStr(("Pool %s: %d allocated, %d stored"):format(unpack(v)))
     end
 
+    while not wallet.getIsKristUp() do sleep(5) end -- Dirty dirty hack
     local balance = wallet.fetchBalance()
     local unallocatedKrist = balance - kristTotal
     if unallocatedKrist >= 0 then

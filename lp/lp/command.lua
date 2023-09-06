@@ -216,10 +216,10 @@ end
 ---@param ctx cbb.Context
 local function handleSysInfo(ctx)
     local usage = inv.get().getUsage()
-    local totalKrist = wallet.fetchBalance()
+    local totalKrist = wallet.getIsKristUp() and wallet.fetchBalance()
     local allocPools = pools.totalKrist()
     local allocAccts = sessions.totalBalances()
-    local unalloc = totalKrist - allocPools - allocAccts
+    local unalloc = totalKrist and totalKrist - allocPools - allocAccts
     return ctx.reply(
             {
                 text = "LP System Info\n",
@@ -240,7 +240,9 @@ local function handleSysInfo(ctx)
                 ),
             },
             {
-                text = ("- Balance: %g KST\n"):format(totalKrist),
+                text = totalKrist
+                    and ("- Balance: %g KST\n"):format(totalKrist)
+                    or ("- Balance: Unavailable\n"),
             },
             {
                 text = ("  - Allocated to accounts: %g KST (%g%%)\n"):format(
@@ -255,10 +257,12 @@ local function handleSysInfo(ctx)
                 ),
             },
             {
-                text = ("  - Unallocated: %g KST (%g%%)"):format(
-                    unalloc,
-                    util.mRound(100 * unalloc / totalKrist)
-                ),
+                text = totalKrist
+                    and ("  - Unallocated: %g KST (%g%%)"):format(
+                        unalloc,
+                        util.mRound(100 * unalloc / totalKrist)
+                    )
+                    or ("  - Unallocated: Unavailable"),
             }
         )
 end

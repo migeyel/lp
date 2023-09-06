@@ -514,7 +514,6 @@ return {
     address = address,
     reallocateRounding = reallocateRounding,
     getRoundingFund = getRoundingFund,
-    setPendingRefund = setPendingRefund,
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,
     fetchBalance = fetchBalance,
