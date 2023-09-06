@@ -245,16 +245,24 @@ local function handleSysInfo(ctx)
                     or ("- Balance: Unavailable\n"),
             },
             {
-                text = ("  - Allocated to accounts: %g KST (%g%%)\n"):format(
-                    allocAccts,
-                    util.mRound(100 * allocAccts / totalKrist)
-                ),
+                text = totalKrist
+                    and ("  - Allocated to accounts: %g KST (%g%%)\n"):format(
+                        allocAccts,
+                        util.mRound(100 * allocAccts / totalKrist)
+                    )
+                    or ("  - Allocated to accounts: %g KST\n"):format(
+                        allocAccts
+                    ),
             },
             {
-                text = ("  - Allocated to pools: %g KST (%g%%)\n"):format(
-                    allocPools,
-                    util.mRound(100 * allocPools / totalKrist)
-                ),
+                text = totalKrist
+                    and ("  - Allocated to pools: %g KST (%g%%)\n"):format(
+                        allocPools,
+                        util.mRound(100 * allocPools / totalKrist)
+                    )
+                    or ("  - Allocated to pools: %g KST\n"):format(
+                        allocPools
+                    ),
             },
             {
                 text = totalKrist
