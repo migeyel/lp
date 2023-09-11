@@ -48,7 +48,7 @@ local function suck()
                 if pool and session then
                     session:sell(pool, amt, true)
                     log:info(("%s sold %d units of %q for %g"):format(
-                        session.user,
+                        session:account().username,
                         amt,
                         pool.label,
                         session:sellPriceWithFee(pool, amt)
