@@ -31,14 +31,18 @@ for _, p in pairs(state.pools) do
     poolKristSum = poolKristSum + p.allocatedKrist
 end
 
+---@class Drip
+---@field rate number
+---@field remaining number
+
 ---@class Pool
 ---@field label string
 ---@field item string
 ---@field nbt string
 ---@field allocatedItems number
 ---@field allocatedKrist number
----@field tag string
 ---@field feeRate number?
+---@field drip Drip?
 local Pool = {}
 
 ---@param id string
@@ -107,6 +111,26 @@ local function pools(category)
             if p then return k1, setmetatable(p, { __index = Pool }) end
         end, nil, nil
     end
+end
+
+---@param drip Drip
+---@param commit boolean
+function Pool:setDrip(drip, commit)
+    if drip.rate == 0 or drip.remaining == 0 then
+        self.drip = nil
+    else
+        self.drip = drip
+    end
+    if commit then state.commit() end
+end
+
+---@param commit boolean
+function Pool:tickDrip(commit)
+    local drip = self.drip
+    if not drip then return end
+    drip.remaining = drip.remaining - 1
+    if drip.remaining == 0 then self.drip = nil end
+    self:reallocKst(drip.rate, commit)
 end
 
 ---@param label string
