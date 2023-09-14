@@ -648,24 +648,69 @@ local function handleAlloc(ctx)
     local label = ctx.args.item ---@type string
     local amount = ctx.args.amount ---@type number
 
-    local session = sessions.get()
-    if not session or ctx.data.user.uuid ~= session.uuid then
-        return ctx.replyErr("Start a session first with \\lp start")
-    end
-
     amount = util.mFloor(amount)
     local pool = pools.getByTag(label)
     if pool then
-        if amount > session:balance() then
-            return ctx.replyErr("You don't have the KST needed to reallocate")
-        elseif -amount >= pool.allocatedKrist then
+        if -amount >= pool.allocatedKrist then
             return ctx.replyErr(
                 "The pool doesn't have the KST needed to reallocate"
             )
         end
-        local trueAmount = session:account():transfer(-amount, false)
-        pool:reallocKst(-trueAmount, false)
-        pools.state:commitMany(sessions.state)
+        pool:reallocKst(amount, true)
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+end
+
+---@param ctx cbb.Context
+local function handleSetDrip(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+    local amount = ctx.args.amount ---@type number
+    local minutes = ctx.args.minutes ---@type integer
+
+    local rate = util.mFloor(amount / minutes)
+    amount = util.mFloor(rate * minutes)
+    local pool = pools.getByTag(label)
+    if pool then
+        if -amount >= pool.allocatedKrist then
+            return ctx.replyErr(
+                "The pool doesn't have the KST needed to reallocate"
+            )
+        end
+        pool:setDrip({ rate = rate, remaining = minutes }, true)
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+end
+
+---@param ctx cbb.Context
+local function handleQueryDrip(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+
+    local pool = pools.getByTag(label)
+    if pool then
+        if pool.drip then
+            return ctx.reply({
+                text = (
+                    "%s:\nRate %g KST/min\nRemaining: %d min\nTotal: %g KST"
+                ):format(
+                    pool.label,
+                    pool.drip.rate,
+                    pool.drip.remaining,
+                    pool.drip.rate * pool.drip.remaining
+                )
+            })
+        else
+            return ctx.reply({ text = "The pool has no dripping allocations" })
+        end
     else
         return ctx.replyErr(
             ("The item pool %q doesn't exist"):format(label),
@@ -893,8 +938,12 @@ local root = cbb.literal("lp") "lp" {
     },
     cbb.literal("alloc") "alloc" {
         cbb.string "item" {
+            execute = handleQueryDrip,
             cbb.numberExpr "amount" {
                 execute = handleAlloc,
+                cbb.integerExpr "minutes" {
+                    execute = handleSetDrip,
+                }
             }
         }
     },
