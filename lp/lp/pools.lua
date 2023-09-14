@@ -25,11 +25,6 @@ state.categories = state.categories or {}
 local priceChangeEvent = event.register("price_change")
 
 local poolTags = {}
-for _, p in pairs(state.pools) do
-    local tag = p.label:gsub(" ", ""):lower()
-    poolTags[tag] = p
-    poolKristSum = poolKristSum + p.allocatedKrist + p:dripKristAlloc()
-end
 
 ---@class Drip
 ---@field rate number
@@ -259,6 +254,12 @@ end
 
 local function totalKrist()
     return poolKristSum
+end
+
+for _, p in pools() do
+    local tag = p.label:gsub(" ", ""):lower()
+    poolTags[tag] = p
+    poolKristSum = poolKristSum + p.allocatedKrist + p:dripKristAlloc()
 end
 
 return {
