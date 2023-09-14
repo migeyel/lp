@@ -477,17 +477,11 @@ local function handleRawdelta(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local amount = ctx.args.amount ---@type number
 
-    local session = sessions.get()
-    if not session or ctx.data.user.uuid ~= session.uuid then
-        return ctx.replyErr("Start a session first with \\lp start")
-    end
-
+    local account = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     ctx.reply({
-        text = "Ok, " .. amount,
+        text = "Ok, " .. (account:transfer(amount, true)),
         color = cbb.colors.WHITE,
     })
-
-    session:transfer(amount, true)
 end
 
 local function handleFeeRate(ctx)
