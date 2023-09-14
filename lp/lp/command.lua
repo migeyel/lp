@@ -450,10 +450,6 @@ local function handleFreqBuy(ctx)
     end
 
     acct:transfer(-sessions.ECHEST_ALLOCATION_PRICE, false)
-    assert(sessions.getAcctByUuid(sessions.PG231)):transfer(
-        sessions.ECHEST_ALLOCATION_PRICE,
-        true
-    )
 
     log:info(("%s has paid %d for frequency %d"):format(
         ctx.user, sessions.ECHEST_ALLOCATION_PRICE, frequency

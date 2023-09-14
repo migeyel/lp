@@ -6,8 +6,6 @@ local util = require "lp.util"
 local pools = require "lp.pools"
 local wallet = require "lp.wallet"
 
-local PG231 = "eddfb535-16e1-4c6a-8b6e-3fcf4b85dc73"
-
 local accountBalanceSum = 0
 
 ---@type table<string, Account|nil>
@@ -330,13 +328,11 @@ function Session:close()
         if fee > 0 then
             local pool = pools.get(id)
             if pool then pools.priceChangeEvent.queue(pool:id()) end
-            assert(getAcctByUuid(PG231)):transfer(fee, false)
         end
     end
     for id, fee in pairs(self.sellFees) do
         local pool = pools.get(id)
         if pool then pools.priceChangeEvent.queue(pool:id()) end
-        if fee > 0 then assert(getAcctByUuid(PG231)):transfer(fee, false) end
     end
 
     local acct = self:account()
@@ -358,7 +354,6 @@ local function totalBalances()
 end
 
 return {
-    PG231 = PG231,
     ECHEST_ALLOCATION_PRICE = ECHEST_ALLOCATION_PRICE,
     startEvent = startEvent,
     endEvent = endEvent,
