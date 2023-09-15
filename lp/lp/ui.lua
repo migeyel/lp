@@ -4,7 +4,8 @@ local basalt = require "basalt"
 local event = require "lp.event"
 local threads = require "lp.threads"
 local util= require "lp.util"
-local wallet = require "lp.wallet"
+local graph  = require "lp.graph"
+local history= require "lp.history"
 
 local mon = peripheral.find("monitor")
 
@@ -21,6 +22,9 @@ local main = basalt.createFrame():setMonitor(peripheral.getName(mon), 0.5)
 local MID_FRAME_SIZE = 34
 local PRICE_WIDTH = 10
 local AMOUNTS_TO_QUOTE_PRICES_AT = { 1, 8, 64, 512, 4096 }
+local LISTING_CHART_HEIGHT = 22
+local CANDLESTICK_MS = 1800000
+local CHART_UPDATE_SECS = 30
 
 local titleBar = main:addFrame("titleBar")
     :setSize("parent.w", 5)
@@ -218,6 +222,16 @@ local function listingPriceBg(p1, p2, index)
     end
 end
 
+local chart
+
+local function rmChart()
+    if chart then
+        chart.obj:remove()
+        chart.listing:setPosition(1, 2 * chart.index - 1)
+        chart = nil
+    end
+end
+
 ---@param pool Pool
 ---@param index number
 local function addListing(listingFrame, pool, index)
@@ -225,6 +239,30 @@ local function addListing(listingFrame, pool, index)
         :setPosition(1, 2 * index - 1)
         :setSize("parent.w", 2)
         :setBackground(listingPriceBg(0, 0, index))
+
+    local myChart
+
+    local lsButton = listing:addButton()
+        :setSize("parent.w", "parent.h")
+        :setZIndex(0)
+        :setBackground(listingPriceBg(0, 0, index))
+        :onClick(function()
+            if chart and 2 * index + 1 < 2 + LISTING_CHART_HEIGHT then return end
+            rmChart()
+            listing:setPosition(1, 1)
+            local obj = listingFrame:addFrame()
+                :setPosition(1, 3)
+                :setSize("parent.w", LISTING_CHART_HEIGHT)
+                :setBackground(colors.white)
+            chart = {
+                obj = obj,
+                index = index,
+                listing = listing,
+                update = graph.drawPoolChart(obj, pool:id(), CANDLESTICK_MS),
+            }
+            chart.update(os.epoch("utc"))
+            myChart = chart
+        end)
 
     local midframe = listing:addFrame("midframe")
         :setSize(MID_FRAME_SIZE, 2)
@@ -295,10 +333,13 @@ local function addListing(listingFrame, pool, index)
     local unroundedPrice = pool:midPriceUnrounded()
 
     function updateListing(secondIter)
+        if chart and chart == myChart then chart.update(os.epoch("utc")) end
+
         local newUnroundedPrice = pool:midPriceUnrounded()
 
         local bg = listingPriceBg(unroundedPrice, newUnroundedPrice, index)
         listing:setBackground(bg)
+        lsButton:setBackground(bg)
         midframe:setBackground(bg)
 
         local fg = listingPriceFg(unroundedPrice, newUnroundedPrice)
@@ -375,6 +416,35 @@ threads.register(function()
         elseif e == pools.priceChangeEvent then
             updateListings[id]()
         end
+    end
+end)
+
+threads.register(function()
+    while true do
+        os.pullEvent("monitor_touch")
+        if chart then
+            sleep()
+            rmChart()
+        end
+    end
+end)
+
+threads.register(function()
+    while true do
+        sleep(CHART_UPDATE_SECS)
+        if chart then chart.update(os.epoch("utc")) end
+    end
+end)
+
+threads.register(function()
+    while true do
+        local id = pools.priceChangeEvent.pull()
+        local pool = assert(pools.get(id))
+        history.addPriceEntry(pool:id(), {
+            timestamp = os.epoch("utc"),
+            items = pool.allocatedItems,
+            mKst = pool.allocatedKrist * 1000,
+        })
     end
 end)
 
