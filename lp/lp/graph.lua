@@ -90,6 +90,8 @@ local function drawPoolChart(frame, poolId, stickInterval)
             :setBackground(colors.white)
     end
 
+    local ticks = {}
+
     local function update(finish)
         local numSticks = math.floor(cframe:getSize() / 2)
         local start = finish - numSticks * stickInterval
@@ -116,8 +118,12 @@ local function drawPoolChart(frame, poolId, stickInterval)
                 str = os.date("%H:%M", tickMs / 1000) --[[@as string]]
             end
 
+            for i = 1, #ticks do
+                ticks[i]:remove()
+            end
+
             if tick + #str + 1 < swidth then
-                sframe:addLabel()
+                ticks[#ticks + 1] = sframe:addLabel()
                     :setText(str)
                     :setPosition(tick + 1, 1)
                     :setForeground(colors.black)
