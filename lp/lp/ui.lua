@@ -22,7 +22,6 @@ local main = basalt.createFrame():setMonitor(peripheral.getName(mon), 0.5)
 local MID_FRAME_SIZE = 34
 local PRICE_WIDTH = 10
 local AMOUNTS_TO_QUOTE_PRICES_AT = { 1, 8, 64, 512, 4096 }
-local LISTING_CHART_HEIGHT = 22
 local CANDLESTICK_MS = 1800000
 local CHART_UPDATE_SECS = 30
 
@@ -247,12 +246,12 @@ local function addListing(listingFrame, pool, index)
         :setZIndex(0)
         :setBackground(listingPriceBg(0, 0, index))
         :onClick(function()
-            if chart and 2 * index + 1 < 2 + LISTING_CHART_HEIGHT then return end
+            if chart then return end
             rmChart()
             listing:setPosition(1, 1)
             local obj = listingFrame:addFrame()
                 :setPosition(1, 3)
-                :setSize("parent.w", LISTING_CHART_HEIGHT)
+                :setSize("parent.w", "parent.h - 2")
                 :setBackground(colors.white)
             chart = {
                 obj = obj,
