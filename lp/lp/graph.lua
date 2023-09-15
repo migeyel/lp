@@ -102,6 +102,10 @@ local function drawPoolChart(frame, poolId, stickInterval)
             chart[#chart + 1] = history.getCandlestick(poolId, i, i + stickInterval)
         end
 
+        for i = 1, #ticks do
+            ticks[i]:remove()
+        end
+
         local prevDay = nil
         local tick = 0
         while tick < swidth do
@@ -116,10 +120,6 @@ local function drawPoolChart(frame, poolId, stickInterval)
                 prevDay = os.date("*t", tickMs / 1000).day
             else
                 str = os.date("%H:%M", tickMs / 1000) --[[@as string]]
-            end
-
-            for i = 1, #ticks do
-                ticks[i]:remove()
             end
 
             if tick + #str + 1 < swidth then
