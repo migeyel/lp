@@ -39,6 +39,9 @@ local function drawChart(cv, ch)
         min = math.min(min, low)
     end
 
+    max = max * 1.01
+    min = min * 0.99
+
     local scale = h / (max - min)
     for i = #ch, 1, -1 do
         local open, close, low, high = table.unpack(ch[i])
