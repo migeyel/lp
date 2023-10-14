@@ -981,6 +981,22 @@ end)
 
 threads.register(function()
     ChatboxReadyEvent.pull()
+
+    local function ping()
+        chatbox.tell(".ping", "is the chatbox socket alive?")
+    end
+
+    while true do
+        sleep(30)
+        local ok, err = pcall(ping)
+        if not ok then
+            error("chatbox socket errored on tell")
+        end
+    end
+end)
+
+threads.register(function()
+    ChatboxReadyEvent.pull()
     while true do
         local uuid, amt, rem = sessions.endEvent.pull()
         if amt ~= 0 then
