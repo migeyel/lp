@@ -55,8 +55,6 @@ local function onUserMsg(msg, usersByUuid, session)
 
     --- Transmits an ok response.
     local function txOk(key, inner)
-        print("ok")
-        require"cc.pretty".pretty_print(inner)
         return session:transmit(proto.serverMsg.serialize {
             version = 1,
             okResponse = {
@@ -83,9 +81,8 @@ local function onUserMsg(msg, usersByUuid, session)
         end
     end
 
-    require"cc.pretty".pretty_print(request)
-
     if request.ping then
+        print(session.user.uuid:sub(1, 8), "ping")
         return session:transmit(proto.serverMsg.serialize {
             version = 1,
             okResponse = {
@@ -96,6 +93,7 @@ local function onUserMsg(msg, usersByUuid, session)
     elseif request.open then
         if rnot(request.open.channel) then return end
         if rnot(#request.open.channel <= MAX_CHANNEL_LEN) then return end
+        print(session.user.uuid:sub(1, 8), "open", request.open.channel)
         local wasOpen = user.sessions[request.open.channel] ~= nil
         local openOk = session:tryOpenChannel(request.open.channel)
         if openOk then
@@ -106,12 +104,14 @@ local function onUserMsg(msg, usersByUuid, session)
     elseif request.close then
         if rnot(request.close.channel) then return end
         if rnot(#request.close.channel <= MAX_CHANNEL_LEN) then return end
+        print(session.user.uuid:sub(1, 8), "close", request.close.channel)
         local wasOpen = user.sessions[request.close.channel] ~= nil
         session:closeChannel(request.close.channel)
         return txOk("channelPrevState", { wasOpen = wasOpen })
     elseif request.isOpen then
         if rnot(request.isOpen.channel) then return end
         if rnot(#request.isOpen.channel <= MAX_CHANNEL_LEN) then return end
+        print(session.user.uuid:sub(1, 8), "isOpen", request.isOpen.channel)
         local isOpen = user.sessions[request.isOpen.channel] ~= nil
         return txOk("channelPrevState", { wasOpen = isOpen })
     elseif request.send then
@@ -126,6 +126,7 @@ local function onUserMsg(msg, usersByUuid, session)
         if not receiver then return end
         local recvSession = receiver.sessions[request.send.channel]
         if not recvSession then return end
+        print(session.user.uuid:sub(1, 8), "tx", request.send.receiverUuid:sub(1, 8))
         recvSession:transmit(proto.serverMsg.serialize {
             version = 1,
             event = {
@@ -138,6 +139,7 @@ local function onUserMsg(msg, usersByUuid, session)
             },
         })
     elseif request.shutdown then
+        print(session.user.uuid:sub(1, 8), "shutdown")
         session:delete()
     end
 end

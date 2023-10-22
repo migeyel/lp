@@ -40,6 +40,8 @@ local expireList = dllist.new()
 local sessionsByCDesc = {}
 
 function Session:delete()
+    print(self.user.uuid:sub(1, 8), "shutting down")
+
     -- Delete references and internal state.
     self.expireListNode:delete()
     sessionsByCDesc[self.cDesc] = nil
