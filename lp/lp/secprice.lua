@@ -41,7 +41,7 @@ local function reallocItems()
     diff = SEC_ITEMS_TARGET - pool.allocatedItems
     local secInvCount = secInv.getCount(pool.item, pool.nbt)
     local secInvFree = secInv.totalSpaceForItem(pool.item, pool.nbt)
-    diff = math.min(SEC_KST_MAX_REALLOC_PART, diff)
+    diff = math.min(SEC_ITEMS_MAX_REALLOC_PART, diff)
     diff = math.max(-SEC_ITEMS_MAX_REALLOC_PART, diff)
     diff = math.min(secInvCount, diff)
     diff = math.max(-secInvFree, diff)
@@ -50,7 +50,7 @@ local function reallocItems()
         pool = getSecPool()
         pool:reallocItems(count, true)
         pools.priceChangeEvent.queue(pool:id())
-    else
+    elseif diff < 0 then
         pool:reallocItems(diff, true)
         pools.priceChangeEvent.queue(pool:id())
         inv.pushItems(secInv, pool.item, -diff, nil, pool.nbt)
