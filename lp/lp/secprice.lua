@@ -19,7 +19,7 @@ local function reallocKrist(commit)
     local pool = getSecPool()
     local targetKst = pools.totalKrist() * SEC_KST_SUM_PART
     local diff = targetKst - pool.allocatedKrist
-    if diff == 0 then return end
+    if math.abs(diff) < 2 then return end
     local upperBound = SEC_KST_MAX_REALLOC_PART * pool.allocatedKrist
     local lowerBound = -SEC_KST_MAX_REALLOC_PART * pool.allocatedKrist
     diff = math.min(upperBound, diff)
