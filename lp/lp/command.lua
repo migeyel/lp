@@ -9,6 +9,7 @@ local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
 local wallet = require "lp.wallet"
+local secprice = require "lp.secprice"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -215,11 +216,15 @@ end
 
 ---@param ctx cbb.Context
 local function handleSysInfo(ctx)
+    local secPool = secprice.getSecPool()
+    local secInv = inventory.getSec()
+    local secCount = secInv.getCount(secPool.item, secPool.nbt)
     local usage = inv.get().getUsage()
     local totalKrist = wallet.getIsKristUp() and wallet.fetchBalance()
     local allocPools = pools.totalKrist()
     local allocAccts = sessions.totalBalances()
     local allocFees = wallet.getFeeFund()
+    local allocSecs = wallet.getSecFund()
     local unalloc = totalKrist and totalKrist - allocPools - allocAccts - allocFees
     return ctx.reply(
             {
@@ -239,6 +244,11 @@ local function handleSysInfo(ctx)
                     usage.free,
                     util.mRound(100 * usage.free / usage.total)
                 ),
+            },
+            {
+                text = ("  - Issued securities reserve: %g items\n"):format(
+                    secCount
+                )
             },
             {
                 text = totalKrist
@@ -273,6 +283,16 @@ local function handleSysInfo(ctx)
                     )
                     or ("  - Fee fund: %g KST\n"):format(
                         allocFees
+                    )
+            },
+            {
+                text = totalKrist
+                    and ("  - Securities fund: %g KST (%g%%)\n"):format(
+                        allocSecs,
+                        util.mRound(100 * allocSecs / totalKrist)
+                    )
+                    or ("  - Securities fund: %g KST\n"):format(
+                        allocSecs
                     )
             },
             {
@@ -501,6 +521,16 @@ local function handleFeeRealloc(ctx)
     local amount = ctx.args.amount ---@type number
     ctx.reply({
         text = "New balance: " .. wallet.reallocateFee(amount, true),
+        color = cbb.colors.WHITE,
+    })
+end
+
+---@param ctx cbb.Context
+local function handleSecRealloc(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local amount = ctx.args.amount ---@type number
+    ctx.reply({
+        text = "New balance: " .. wallet.reallocateSec(amount, true),
         color = cbb.colors.WHITE,
     })
 end
@@ -944,6 +974,11 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("fee") "fee" {
             cbb.numberExpr "amount" {
                 execute = handleFeeRealloc,
+            }
+        },
+        cbb.literal("sec") "sec" {
+            cbb.numberExpr "amount" {
+                execute = handleSecRealloc,
             }
         }
     },
