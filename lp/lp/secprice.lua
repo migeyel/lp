@@ -1,7 +1,6 @@
 local wallet = require "lp.wallet"
 local pools = require "lp.pools"
 local inventory = require "lp.inventory"
-local abstractInvLib = require "abstractInvLib"
 local threads = require "lp.threads"
 
 local SECURITY_TAG = "LP Security"
@@ -25,7 +24,7 @@ local function reallocKrist(commit)
     local lowerBound = -SEC_KST_MAX_REALLOC_PART * pool.allocatedKrist
     diff = math.min(upperBound, diff)
     diff = math.max(lowerBound, diff)
-    diff = math.max(diff, wallet.getSecFund())
+    diff = math.min(diff, wallet.getSecFund())
     wallet.reallocateSec(-diff, false)
     pool:reallocKst(diff, false)
     if commit then pools.state:commitMany(wallet.state) end
@@ -37,7 +36,7 @@ local function reallocItems()
     local diff = SEC_ITEMS_TARGET - pool.allocatedItems
     if diff == 0 then return end
     local inv = inventory.get()
-    local secInv = abstractInvLib({ inventory.SECURITIES_INV })
+    local secInv = inventory.getSec()
     pool = getSecPool()
     diff = SEC_ITEMS_TARGET - pool.allocatedItems
     local secInvCount = secInv.getCount(pool.item, pool.nbt)
