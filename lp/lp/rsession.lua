@@ -6,6 +6,7 @@ local echest = require "lp.echest"
 local proto = require "lp.proto"
 local unetc = require "unet.client"
 local log = require "lp.log"
+local wallet = require "lp.wallet"
 
 local UNET_TOKEN = "ace7a585-396f-407a-a0ea-55585a7b7805"
 local UNET_CHANNEL = "lp"
@@ -247,6 +248,7 @@ local function handleBuy(uss, id, rch, uuid, buy)
     account:transfer(-buyPriceWithFee, false)
     pool:reallocItems(-pushTransfer.amount, false)
     pool:reallocKst(buyPriceNoFee, false)
+    wallet.reallocateFee(buyFee, false)
 
     local orderExecution = {
         amount = pushTransfer.amount,
@@ -257,7 +259,7 @@ local function handleBuy(uss, id, rch, uuid, buy)
         allocatedKrist = pool.allocatedKrist,
     }
 
-    local dumpAmt = pushTransfer.commit(sessions.state, pools.state) --[[yield]] account, pool = nil, nil
+    local dumpAmt = pushTransfer.commit(sessions.state, pools.state, wallet.state) --[[yield]] account, pool = nil, nil
     send(uss, rch, uuid, proto.Response.serialize {
         id = id,
         success = dumpAmt == 0 and {
@@ -449,6 +451,7 @@ local function handleSell(uss, id, rch, uuid, sell)
     account:transfer(sellPriceWithFee, false)
     pool:reallocItems(pullTransfer.amount, false)
     pool:reallocKst(-sellPriceNoFee, false)
+    wallet.reallocateFee(sellFee, false)
 
     local response = proto.Response.serialize {
         id = id,
@@ -464,7 +467,7 @@ local function handleSell(uss, id, rch, uuid, sell)
         },
     }
 
-    pullTransfer.commit(sessions.state, pools.state) --[[yield]] account, pool = nil, nil
+    pullTransfer.commit(sessions.state, pools.state, wallet.state) --[[yield]] account, pool = nil, nil
 
     send(uss, rch, uuid, response)
 

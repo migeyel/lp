@@ -219,7 +219,8 @@ local function handleSysInfo(ctx)
     local totalKrist = wallet.getIsKristUp() and wallet.fetchBalance()
     local allocPools = pools.totalKrist()
     local allocAccts = sessions.totalBalances()
-    local unalloc = totalKrist and totalKrist - allocPools - allocAccts
+    local allocFees = wallet.getFeeFund()
+    local unalloc = totalKrist and totalKrist - allocPools - allocAccts - allocFees
     return ctx.reply(
             {
                 text = "LP System Info\n",
@@ -263,6 +264,16 @@ local function handleSysInfo(ctx)
                     or ("  - Allocated to pools: %g KST\n"):format(
                         allocPools
                     ),
+            },
+            {
+                text = totalKrist
+                    and ("  - Fee fund: %g KST (%g%%)\n"):format(
+                        allocFees,
+                        util.mRound(100 * allocFees / totalKrist)
+                    )
+                    or ("  - Fee fund: %g KST\n"):format(
+                        allocFees
+                    )
             },
             {
                 text = totalKrist
@@ -480,6 +491,16 @@ local function handleRawdelta(ctx)
     local account = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     ctx.reply({
         text = "Ok, " .. (account:transfer(amount, true)),
+        color = cbb.colors.WHITE,
+    })
+end
+
+---@param ctx cbb.Context
+local function handleFeeRealloc(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local amount = ctx.args.amount ---@type number
+    ctx.reply({
+        text = "New balance: " .. wallet.reallocateFee(amount, true),
         color = cbb.colors.WHITE,
     })
 end
@@ -917,6 +938,13 @@ local root = cbb.literal("lp") "lp" {
     cbb.literal("rawdelta") "rawdelta" {
         cbb.numberExpr "amount" {
             execute = handleRawdelta,
+        }
+    },
+    cbb.literal("fund") "fund" {
+        cbb.literal("fee") "fee" {
+            cbb.numberExpr "amount" {
+                execute = handleFeeRealloc,
+            }
         }
     },
     cbb.literal("feerate") "feerate" {

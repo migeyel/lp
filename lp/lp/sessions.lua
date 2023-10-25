@@ -328,17 +328,19 @@ function Session:close()
         if fee > 0 then
             local pool = pools.get(id)
             if pool then pools.priceChangeEvent.queue(pool:id()) end
+            wallet.reallocateFee(fee, false)
         end
     end
     for id, fee in pairs(self.sellFees) do
         local pool = pools.get(id)
         if pool then pools.priceChangeEvent.queue(pool:id()) end
+        wallet.reallocateFee(fee, false)
     end
 
     local acct = self:account()
     if acct.persist or not wallet.getIsKristUp() then
         state.session = nil
-        state:commitMany(pools.state)
+        state:commitMany(pools.state, wallet.state)
         endEvent.queue(self.uuid, 0, acct.balance)
     else
         local amt, rem = acct:withdraw(math.floor(acct.balance), false)
