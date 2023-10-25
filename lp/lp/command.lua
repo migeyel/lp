@@ -225,7 +225,11 @@ local function handleSysInfo(ctx)
     local allocAccts = sessions.totalBalances()
     local allocFees = wallet.getFeeFund()
     local allocSecs = wallet.getSecFund()
-    local unalloc = totalKrist and totalKrist - allocPools - allocAccts - allocFees
+    local unalloc = totalKrist and totalKrist
+        - allocPools
+        - allocAccts
+        - allocFees
+        - allocSecs
     return ctx.reply(
             {
                 text = "LP System Info\n",
