@@ -19,7 +19,7 @@ local function reallocKrist(commit)
     local pool = getSecPool()
     local targetKst = pools.totalKrist() * SEC_KST_SUM_PART
     local diff = targetKst - pool.allocatedKrist
-    if math.abs(diff) < 2 then return end
+    if math.abs(diff) < 0.5 then return end
     local upperBound = SEC_KST_MAX_REALLOC_PART * pool.allocatedKrist
     local lowerBound = -SEC_KST_MAX_REALLOC_PART * pool.allocatedKrist
     diff = math.min(upperBound, diff)
@@ -60,11 +60,8 @@ end
 threads.register(function()
     while true do
         sleep(math.random() * 2)
-        if math.random() > 0.5 then
-            reallocKrist(true)
-        else
-            reallocItems()
-        end
+        reallocKrist(true)
+        reallocItems()
     end
 end)
 
