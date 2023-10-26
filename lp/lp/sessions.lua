@@ -252,13 +252,10 @@ function Session:buyPriceWithFee(pool, amount)
     if price == 1 / 0 then
         return 1 / 0, self.buyFees[id] or 0, self.sellFees[id] or 0
     end
-    local basicFee = pool:buyFee(amount)
-    local sellFeesUsed = math.min(basicFee, self.sellFees[id] or 0)
-    local refundedFee = basicFee - 2 * sellFeesUsed
-    local priceWithFee = mCeil(price + refundedFee)
-    local newSellFees = mFloor((self.sellFees[id] or 0) - sellFeesUsed)
-    local earnings = math.max(refundedFee, 0)
-    local newBuyFees = mFloor((self.buyFees[id] or 0) + earnings)
+    local buyFee = pool:buyFee(amount)
+    local priceWithFee = mCeil(price + buyFee)
+    local newSellFees = self.sellFees[id] or 0
+    local newBuyFees = mFloor((self.buyFees[id] or 0) + buyFee)
     return priceWithFee, newBuyFees, newSellFees
 end
 
@@ -270,13 +267,10 @@ end
 function Session:sellPriceWithFee(pool, amount)
     local price = pool:sellPrice(amount)
     local id = pool:id()
-    local basicFee = pool:sellFee(amount)
-    local buyFeesUsed = math.min(basicFee, self.buyFees[id] or 0)
-    local refundedFee = basicFee - 2 * buyFeesUsed
-    local priceWithFee = mFloor(price - refundedFee)
-    local newBuyFees = mFloor((self.buyFees[id] or 0) - buyFeesUsed)
-    local earnings = math.max(refundedFee, 0)
-    local newSellFees = mFloor((self.sellFees[id] or 0) + earnings)
+    local sellFee = pool:sellFee(amount)
+    local priceWithFee = mFloor(price - sellFee)
+    local newBuyFees = self.buyFees[id] or 0
+    local newSellFees = mFloor((self.sellFees[id] or 0) + sellFee)
     return priceWithFee, newBuyFees, newSellFees
 end
 
