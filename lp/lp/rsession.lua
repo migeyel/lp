@@ -8,7 +8,7 @@ local unetc = require "unet.client"
 local log = require "lp.log"
 local wallet = require "lp.wallet"
 
-local UNET_TOKEN = "ace7a585-396f-407a-a0ea-55585a7b7805"
+local UNET_TOKEN = assert(settings.get("unetc.token"))
 local UNET_CHANNEL = "lp"
 
 ---@param uss unetc.Session
