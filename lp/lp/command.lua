@@ -590,6 +590,8 @@ local function handleArb(ctx)
             })
         end
 
+        otherPrice = util.mRound(otherPrice)
+
         local initAmt = math.ceil(
             math.sqrt(
                 pool.allocatedKrist * pool.allocatedItems / otherPrice
