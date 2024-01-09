@@ -22,6 +22,9 @@ local SOCKET_MAX_IDLE_MS = 30000
 ---@class WalletState: State
 ---@field PENDING WalletPending
 ---@field pendingout number
+---@field totalout number?
+---@field lastseen number?
+---@field pkey string
 ---@field roundingFund number
 ---@field feeFund number
 ---@field secFund number
@@ -134,32 +137,12 @@ local function setPendingTx(receiver, amount, cm, commit)
 
     if sendAmt <= 0 then return end
 
-    -- Encode commonMeta.
-    local cmCopy = {}
-    for i, v in pairs(cm) do
-        cmCopy[i] = v
-    end
-
-    if named then
-        cmCopy[1] = receiver
-    end
-
-    local metaBuf = {}
-    for i, v in ipairs(cmCopy) do
-        cmCopy[i] = nil
-        metaBuf[#metaBuf + 1] = v
-    end
-
-    for i, v in pairs(cmCopy) do
-        metaBuf[#metaBuf + 1] = i .. "=" .. v
-    end
-
     -- Commit pending transaction to local state.
     state.pendingout = state.pendingout + sendAmt
     state.PENDING = {
         to = receiver,
         amount = sendAmt,
-        meta = table.concat(metaBuf, ";"),
+        meta = "",
     }
 
     if commit then
