@@ -43,10 +43,6 @@ local function getRoundingFund()
     return state.roundingFund
 end
 
-local function getFeeFund()
-    return state.feeFund
-end
-
 local function getDynFund()
     return state.dynFund
 end
@@ -289,13 +285,6 @@ local function refundLostTxs()
     end
 end
 
-local function reallocateFee(delta, commit)
-    delta = math.max(delta, -state.feeFund)
-    state.feeFund = util.mFloor(state.feeFund + delta)
-    if commit then state.commit() end
-    return state.feeFund
-end
-
 local function reallocateDyn(delta, commit)
     delta = math.max(delta, -state.dynFund)
     state.dynFund = util.mFloor(state.dynFund + delta)
@@ -524,10 +513,8 @@ threads.register(safeListenerEntrypoint)
 return {
     address = address,
     reallocateRounding = reallocateRounding,
-    reallocateFee = reallocateFee,
     reallocateDyn = reallocateDyn,
     getRoundingFund = getRoundingFund,
-    getFeeFund = getFeeFund,
     getDynFund = getDynFund,
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,

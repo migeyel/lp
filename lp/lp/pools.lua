@@ -26,12 +26,25 @@ local priceChangeEvent = event.register("price_change")
 
 local poolTags = {}
 
+---@class FixedRateScheme
+---@field type "fixed_rate"
+---@field rate number
+
+---@class WeightedRemainderScheme
+---@field type "weighted_remainder"
+---@field weight number
+
+---@alias DynamicAllocationScheme
+--- | FixedRateScheme
+--- | WeightedRemainderScheme
+
 ---@class Pool
 ---@field label string
 ---@field item string
 ---@field nbt string
 ---@field allocatedItems number
 ---@field allocatedKrist number
+---@field dynAlloc DynamicAllocationScheme?
 ---@field feeRate number?
 local Pool = {}
 
