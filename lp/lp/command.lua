@@ -565,6 +565,16 @@ local function handleSecRealloc(ctx)
     })
 end
 
+---@param ctx cbb.Context
+local function handleDynRealloc(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local amount = ctx.args.amount ---@type number
+    ctx.reply({
+        text = "New balance: " .. wallet.reallocateDyn(amount, true),
+        color = cbb.colors.WHITE,
+    })
+end
+
 local function handleFeeRate(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
@@ -1042,6 +1052,11 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("sec") "sec" {
             cbb.numberExpr "amount" {
                 execute = handleSecRealloc,
+            }
+        },
+        cbb.literal("dyn") "dyn" {
+            cbb.numberExpr "amount" {
+                execute = handleDynRealloc,
             }
         }
     },
