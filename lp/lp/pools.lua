@@ -26,10 +26,6 @@ local priceChangeEvent = event.register("price_change")
 
 local poolTags = {}
 
----@class Drip
----@field rate number
----@field remaining number
-
 ---@class Pool
 ---@field label string
 ---@field item string
@@ -37,7 +33,6 @@ local poolTags = {}
 ---@field allocatedItems number
 ---@field allocatedKrist number
 ---@field feeRate number?
----@field drip Drip?
 local Pool = {}
 
 ---@param id string
@@ -106,41 +101,6 @@ local function pools(category)
             if p then return k1, setmetatable(p, { __index = Pool }) end
         end, nil, nil
     end
-end
-
----@return number
-function Pool:dripKristAlloc()
-    if self.drip and self.drip.rate > 0 then
-        return self.drip.rate * self.drip.remaining
-    else
-        return 0
-    end
-end
-
----@param drip Drip
----@param commit boolean
-function Pool:setDrip(drip, commit)
-    poolKristSum = poolKristSum - self:dripKristAlloc()
-    if drip.rate == 0 or drip.remaining == 0 then
-        self.drip = nil
-    else
-        self.drip = drip
-    end
-    poolKristSum = poolKristSum + self:dripKristAlloc()
-    if commit then state.commit() end
-end
-
----@param commit boolean
-function Pool:tickDrip(commit)
-    local drip = self.drip
-    if not drip then return end
-
-    poolKristSum = poolKristSum - self:dripKristAlloc()
-    drip.remaining = drip.remaining - 1
-    if drip.remaining == 0 then self.drip = nil end
-    poolKristSum = poolKristSum + self:dripKristAlloc()
-
-    self:reallocKst(drip.rate, commit)
 end
 
 ---@param label string
@@ -259,7 +219,7 @@ end
 for _, p in pools() do
     local tag = p.label:gsub(" ", ""):lower()
     poolTags[tag] = p
-    poolKristSum = poolKristSum + p.allocatedKrist + p:dripKristAlloc()
+    poolKristSum = poolKristSum + p.allocatedKrist
 end
 
 return {

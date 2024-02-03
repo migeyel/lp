@@ -46,7 +46,6 @@ local ok, err = xpcall(
         require "lp.rsession"
         require "lp.frequencies"
         require "lp.broadcast"
-        require "lp.dripper"
         require "lp.secprice"
         local threads = require "lp.threads"
         log:info("Thread runtime started")
