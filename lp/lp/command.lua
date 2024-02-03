@@ -341,7 +341,10 @@ local function handleInfo(ctx)
                 text = ("- Allocated Items: %g\n"):format(pool.allocatedItems),
             },
             {
-                text = ("- Allocated Krist: %g\n"):format(pool.allocatedKrist),
+                text = ("- Allocated Krist: %g (%g%%)\n"):format(
+                    pool.allocatedKrist,
+                    util.mRound(100 * pool.allocatedKrist / pools.totalKrist())
+                ),
             },
             {
                 text = ("- Price: %g\n"):format(pool:midPrice()),
