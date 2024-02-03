@@ -7,6 +7,7 @@ local MEAN_ALLOCATION_TIME = 300
 local KRIST_RATE = 1 / 3
 
 local function computeTargetDeltas()
+    -- Sum of all dynamic allocated pools' Krist
     local dynSum = wallet.getDynFund()
     for _, pool in pools.pools() do
         if pool.dynAlloc then
@@ -17,6 +18,7 @@ local function computeTargetDeltas()
     local positiveDeltas = {} ---@type table<string, number>
     local negativeDeltas = {} ---@type table<string, number>
 
+    -- Sum of all fixed rate pools' Krist
     local fixedRateSum = 0
     for id, pool in pools.pools() do
         local alloc = pool.dynAlloc
@@ -35,30 +37,56 @@ local function computeTargetDeltas()
         end
     end
 
-    local remainder = util.mFloor(dynSum - fixedRateSum)
+    -- Sum of all weighted remainder pools' Krist
+    local wremSum = 0
+    for _, pool in pools.pools() do
+        local alloc = pool.dynAlloc
+        if alloc then
+            if alloc.type == "weighted_remainder" then
+                ---@cast alloc WeightedRemainderScheme
+                alloc.weight = 1 -- TODO REMOVE!
+                wremSum = wremSum + pool.allocatedKrist
+            end
+        end
+    end
 
+    -- Amount of krist needed (< 0) or available (> 0) to allocate into the
+    -- weighted remainder pools
+    local remainder = util.mRound(dynSum - fixedRateSum - wremSum)
+
+    -- Weight sum and count
     local weightSum = 0
-    local prodSum = 0
+    local wremCount = 0
     for _, pool in pools.pools() do
         local alloc = pool.dynAlloc
         if alloc then
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
                 weightSum = weightSum + alloc.weight
-                prodSum = prodSum + pool.allocatedItems * pool.allocatedKrist
+                wremCount = wremCount + 1
             end
         end
     end
 
+    -- Weight average
+    -- Pools with a weight larger than average will expand
+    -- Pools with a weight smaller than the average will contract
+    local weightAvg =  weightSum / wremCount
+    if wremCount == 0 then return end
+
+    -- The remainder gets distributed evenly among all pools
+    -- After that, pools will reallocate accorting to their weight. Pools with a
+    -- weight equal to twice the average will double in size, while pools with a
+    -- weight equal to half the average will halve in size.
     for id, pool in pools.pools() do
         local alloc = pool.dynAlloc
         if alloc then
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
-                local myRatio = alloc.weight / weightSum
-                local tgtProd = myRatio * prodSum
-                local tgtKst = tgtProd / pool.allocatedItems
-                local delta = util.mFloor(tgtKst - pool.allocatedKrist)
+                local myKstRatio = wremSum / pool.allocatedKrist
+                local remTarget = remainder * myKstRatio + pool.allocatedKrist
+                local allTarget = (alloc.weight / weightAvg) * remTarget
+                local delta = util.mFloor(allTarget - pool.allocatedKrist)
                 if delta > 0 then
                     positiveDeltas[id] = delta
                 elseif delta < 0 then
@@ -96,7 +124,10 @@ local function rebalance(kstToMove, commit)
         local id = negativeKeys[i]
         local pool = pools.get(id)
         if pool then
+            local weight = pool.dynAlloc.weight
             local delta = math.max(-negRemaining, negativeDeltas[id])
+            local weightDelta = delta / pool.allocatedKrist
+            pool.dynAlloc.weight = weight * (1 + weightDelta)
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
             negRemaining = util.mFloor(negRemaining + delta)
@@ -109,7 +140,10 @@ local function rebalance(kstToMove, commit)
         local id = positiveKeys[i]
         local pool = pools.get(id)
         if pool then
+            local weight = pool.dynAlloc.weight
             local delta = math.min(posRemaining, positiveDeltas[id])
+            local weightDelta = delta / pool.allocatedKrist
+            pool.dynAlloc.weight = weight * (1 + weightDelta)
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
             posRemaining = util.mFloor(posRemaining - delta)
