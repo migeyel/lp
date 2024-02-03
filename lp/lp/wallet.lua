@@ -47,10 +47,6 @@ local function getFeeFund()
     return state.feeFund
 end
 
-local function getSecFund()
-    return state.secFund
-end
-
 local function getDynFund()
     return state.dynFund
 end
@@ -300,13 +296,6 @@ local function reallocateFee(delta, commit)
     return state.feeFund
 end
 
-local function reallocateSec(delta, commit)
-    delta = math.max(delta, -state.secFund)
-    state.secFund = util.mFloor(state.secFund + delta)
-    if commit then state.commit() end
-    return state.secFund
-end
-
 local function reallocateDyn(delta, commit)
     delta = math.max(delta, -state.dynFund)
     state.dynFund = util.mFloor(state.dynFund + delta)
@@ -536,11 +525,9 @@ return {
     address = address,
     reallocateRounding = reallocateRounding,
     reallocateFee = reallocateFee,
-    reallocateSec = reallocateSec,
     reallocateDyn = reallocateDyn,
     getRoundingFund = getRoundingFund,
     getFeeFund = getFeeFund,
-    getSecFund = getSecFund,
     getDynFund = getDynFund,
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,

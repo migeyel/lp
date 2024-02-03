@@ -225,13 +225,11 @@ local function handleSysInfo(ctx)
     local allocPools = pools.totalKrist()
     local allocAccts = sessions.totalBalances()
     local allocFees = wallet.getFeeFund()
-    local allocSecs = wallet.getSecFund()
     local allocDyn = wallet.getDynFund()
     local unalloc = totalKrist and totalKrist
         - allocPools
         - allocAccts
         - allocFees
-        - allocSecs
         - allocDyn
     return ctx.reply(
             {
@@ -290,16 +288,6 @@ local function handleSysInfo(ctx)
                     )
                     or ("  - Fee fund: %g KST\n"):format(
                         allocFees
-                    )
-            },
-            {
-                text = totalKrist
-                    and ("  - Securities fund: %g KST (%g%%)\n"):format(
-                        allocSecs,
-                        util.mRound(100 * allocSecs / totalKrist)
-                    )
-                    or ("  - Securities fund: %g KST\n"):format(
-                        allocSecs
                     )
             },
             {
@@ -552,16 +540,6 @@ local function handleFeeRealloc(ctx)
     local amount = ctx.args.amount ---@type number
     ctx.reply({
         text = "New balance: " .. wallet.reallocateFee(amount, true),
-        color = cbb.colors.WHITE,
-    })
-end
-
----@param ctx cbb.Context
-local function handleSecRealloc(ctx)
-    if ctx.user:lower() ~= "pg231" then return end -- lazy
-    local amount = ctx.args.amount ---@type number
-    ctx.reply({
-        text = "New balance: " .. wallet.reallocateSec(amount, true),
         color = cbb.colors.WHITE,
     })
 end
@@ -1105,11 +1083,6 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("fee") "fee" {
             cbb.numberExpr "amount" {
                 execute = handleFeeRealloc,
-            }
-        },
-        cbb.literal("sec") "sec" {
-            cbb.numberExpr "amount" {
-                execute = handleSecRealloc,
             }
         },
         cbb.literal("dyn") "dyn" {
