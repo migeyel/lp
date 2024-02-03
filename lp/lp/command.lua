@@ -232,6 +232,7 @@ local function handleSysInfo(ctx)
         - allocAccts
         - allocFees
         - allocSecs
+        - allocDyn
     return ctx.reply(
             {
                 text = "LP System Info\n",
