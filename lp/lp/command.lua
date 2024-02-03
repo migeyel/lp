@@ -853,6 +853,7 @@ local function handleRebalanceInfo(ctx)
         local kv = array[i]
         local pool = pools.get(kv[1])
         if pool then
+            local percent = util.mRound(100 * kv[2] / pool.allocatedKrist)
             out[#out + 1] = {
                 text = "\n" .. tostring(i) .. ". " .. pool.label .. ": "
             }
@@ -868,7 +869,21 @@ local function handleRebalanceInfo(ctx)
                 }
             end
             out[#out + 1] = {
-                text = " KST"
+                text = " KST ("
+            }
+            if kv[2] < 0 then
+                out[#out + 1] = {
+                    text = tostring(percent) .. "%",
+                    color = cbb.colors.RED,
+                }
+            else
+                out[#out + 1] = {
+                    text = tostring(percent) .. "%",
+                    color = cbb.colors.GREEN,
+                }
+            end
+            out[#out + 1] = {
+                text = ")"
             }
         end
     end
