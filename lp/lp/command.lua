@@ -839,8 +839,8 @@ local function handleRebalanceInfo(ctx)
     local pos, neg = allocation.computeTargetDeltas()
 
     local array = {}
-    for k, v in pos do array[#array + 1] = {k, v} end
-    for k, v in neg do array[#array + 1] = {k, v} end
+    for k, v in pairs(pos) do array[#array + 1] = {k, v} end
+    for k, v in pairs(neg) do array[#array + 1] = {k, v} end
 
     table.sort(array, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
 
