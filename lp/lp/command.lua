@@ -354,11 +354,11 @@ local function handleInfo(ctx)
             },
             pool.dynAlloc and (
                 pool.dynAlloc.type == "fixed_rate" and {
-                    text = ("- Dynamic allocation: Fixed rate at %g%%"):format(
+                    text = ("\n- Dynamic allocation: Fixed rate at %g%%"):format(
                         100 * pool.dynAlloc.rate
                     )
                 } or {
-                    text = ("- Dynamic allocation: Weighted w = %g%%"):format(
+                    text = ("\n- Dynamic allocation: Weighted w = %g"):format(
                         pool.dynAlloc.weight
                     )
                 }
