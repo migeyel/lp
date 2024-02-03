@@ -10,6 +10,7 @@ local log = require "lp.log"
 local cbb = require "cbb"
 local wallet = require "lp.wallet"
 local secprice = require "lp.secprice"
+local allocation = require "lp.allocation"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -815,6 +816,13 @@ local function handleSetAllocStatic(ctx)
     ctx.reply { text = "success" }
 end
 
+local function handleAllocRebalance(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local toMove = ctx.args.value ---@type number
+    allocation.rebalance(toMove, true)
+    ctx.reply { text = "success" }
+end
+
 ---@param ctx cbb.Context
 local function handleKick(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
@@ -1063,6 +1071,11 @@ local root = cbb.literal("lp") "lp" {
                 execute = handleAlloc,
             }
         }
+    },
+    cbb.literal("rebalance") "rebalance" {
+        cbb.numberExpr "value" {
+            execute = handleAllocRebalance,
+        },
     },
     cbb.literal("kick") "kick" {
         execute = handleKick,
