@@ -225,6 +225,7 @@ local function handleSysInfo(ctx)
     local allocAccts = sessions.totalBalances()
     local allocFees = wallet.getFeeFund()
     local allocSecs = wallet.getSecFund()
+    local allocDyn = wallet.getDynFund()
     local unalloc = totalKrist and totalKrist
         - allocPools
         - allocAccts
@@ -297,6 +298,16 @@ local function handleSysInfo(ctx)
                     )
                     or ("  - Securities fund: %g KST\n"):format(
                         allocSecs
+                    )
+            },
+            {
+                text = totalKrist
+                    and ("  - Unused dyn allocation fund: %g KST (%g%%)\n"):format(
+                        allocDyn,
+                        util.mRound(100 * allocDyn / totalKrist)
+                    )
+                    or ("  - Unused dyn allocation fund: %g KST"):format(
+                        allocDyn
                     )
             },
             {
