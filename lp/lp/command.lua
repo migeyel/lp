@@ -849,12 +849,12 @@ local function handleRebalanceInfo(ctx)
         text = "Top pending rebalancing actions:"
     }}
 
-    for i = 1, math.min(5, #array) do
+    for i = 1, math.min(10, #array) do
         local kv = array[i]
         local pool = pools.get(kv[1])
         if pool then
             out[#out + 1] = {
-                text = "\n- " .. pool.label .. ": "
+                text = "\n" .. tostring(i) .. ". " .. pool.label .. ": "
             }
             if kv[2] < 0 then
                 out[#out + 1] = {
