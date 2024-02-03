@@ -38,12 +38,14 @@ local function computeTargetDeltas()
     local remainder = util.mFloor(dynSum - fixedRateSum)
 
     local weightSum = 0
+    local prodSum = 0
     for _, pool in pools.pools() do
         local alloc = pool.dynAlloc
         if alloc then
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
                 weightSum = weightSum + alloc.weight
+                prodSum = prodSum + pool.allocatedItems * pool.allocatedKrist
             end
         end
     end
@@ -53,9 +55,10 @@ local function computeTargetDeltas()
         if alloc then
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
-                local rate = alloc.weight / weightSum
-                local target = math.max(0, util.mFloor(remainder * rate))
-                local delta = util.mFloor(target - pool.allocatedKrist)
+                local myRatio = alloc.weight / weightSum
+                local tgtProd = myRatio * prodSum
+                local tgtKst = tgtProd / pool.allocatedItems
+                local delta = util.mFloor(tgtKst - pool.allocatedKrist)
                 if delta > 0 then
                     positiveDeltas[id] = delta
                 elseif delta < 0 then
