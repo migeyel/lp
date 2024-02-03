@@ -98,7 +98,7 @@ local function rebalance(kstToMove, commit)
         end
     end
 
-    local posRemaining = wallet.getDynFund()
+    local posRemaining = math.min(kstToMove, wallet.getDynFund())
     for i = 1, #positiveKeys do
         if posRemaining <= 0 then break end
         local id = positiveKeys[i]
