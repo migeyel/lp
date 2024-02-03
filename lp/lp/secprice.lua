@@ -40,7 +40,7 @@ end
 threads.register(function()
     while true do
         sleep(1)
-        if math.random(1, 3600) == 1 then
+        if math.random(1, 300) == 1 then
             reallocItems()
         end
     end
