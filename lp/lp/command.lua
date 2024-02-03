@@ -835,6 +835,48 @@ local function handleAllocRebalance(ctx)
 end
 
 ---@param ctx cbb.Context
+local function handleRebalanceInfo(ctx)
+    local pos, neg = allocation.computeTargetDeltas()
+
+    local array = {}
+    for k, v in pos do array[#array + 1] = {k, v} end
+    for k, v in neg do array[#array + 1] = {k, v} end
+
+    table.sort(array, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
+
+    ---@type cbb.FormattedBlock[]
+    local out = {{
+        text = "Top pending rebalancing actions:"
+    }}
+
+    for i = 1, math.min(5, #array) do
+        local kv = array[i]
+        local pool = pools.get(kv[1])
+        if pool then
+            out[#out + 1] = {
+                text = "\n- " .. pool.label .. ": "
+            }
+            if kv[2] < 0 then
+                out[#out + 1] = {
+                    text = tostring(kv[2]),
+                    color = cbb.colors.RED,
+                }
+            else
+                out[#out + 1] = {
+                    text = tostring(kv[2]),
+                    color = cbb.colors.GREEN,
+                }
+            end
+            out[#out + 1] = {
+                text = " KST"
+            }
+        end
+    end
+
+    return ctx.reply(table.unpack(out))
+end
+
+---@param ctx cbb.Context
 local function handleKick(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local session = sessions.get()
@@ -1089,6 +1131,7 @@ local root = cbb.literal("lp") "lp" {
         }
     },
     cbb.literal("rebalance") "rebalance" {
+        execute = handleRebalanceInfo,
         cbb.numberExpr "value" {
             execute = handleAllocRebalance,
         },

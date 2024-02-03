@@ -123,5 +123,6 @@ threads.register(function()
 end)
 
 return {
+    computeTargetDeltas = computeTargetDeltas,
     rebalance = rebalance,
 }
