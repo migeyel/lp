@@ -125,8 +125,8 @@ local function rebalance(kstToMove, commit)
         if pool then
             local weight = pool.dynAlloc.weight
             local delta = math.max(-negRemaining, negativeDeltas[id])
-            local weightDelta = delta / pool.allocatedKrist
-            pool.dynAlloc.weight = weight * (1 + weightDelta)
+            local target = pool.allocatedKrist + delta
+            pool.dynAlloc.weight = weight * pool.allocatedKrist / target
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
             negRemaining = util.mFloor(negRemaining + delta)
@@ -141,8 +141,8 @@ local function rebalance(kstToMove, commit)
         if pool then
             local weight = pool.dynAlloc.weight
             local delta = math.min(posRemaining, positiveDeltas[id])
-            local weightDelta = delta / pool.allocatedKrist
-            pool.dynAlloc.weight = weight * (1 + weightDelta)
+            local target = pool.allocatedKrist + delta
+            pool.dynAlloc.weight = weight * pool.allocatedKrist / target
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
             posRemaining = util.mFloor(posRemaining - delta)
