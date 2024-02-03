@@ -78,13 +78,14 @@ local function shuffledKeys(table)
     return pad
 end
 
+--- @param kstToMove number
 --- @param commit boolean
-local function rebalance(commit)
+local function rebalance(kstToMove, commit)
     local positiveDeltas, negativeDeltas = computeTargetDeltas()
     local positiveKeys = shuffledKeys(positiveDeltas)
     local negativeKeys = shuffledKeys(negativeDeltas)
 
-    local kstToMove = util.mFloor(-1 / KRIST_RATE * math.log(1 - math.random()))
+    kstToMove = util.mFloor(kstToMove)
     for i = 1, #negativeKeys do
         if kstToMove <= 0 then break end
         local id = negativeKeys[i]
@@ -116,6 +117,11 @@ end
 threads.register(function()
     while true do
         sleep(math.random(0, 2 * MEAN_ALLOCATION_TIME))
-        rebalance(true)
+        local amt = -1 / KRIST_RATE * math.log(1 - math.random())
+        rebalance(amt, true)
     end
 end)
+
+return {
+    rebalance = rebalance,
+}
