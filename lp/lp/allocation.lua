@@ -18,7 +18,7 @@ local function computeTargetDeltas()
     local positiveDeltas = {} ---@type table<string, number>
     local negativeDeltas = {} ---@type table<string, number>
 
-    -- Sum of all fixed rate pools' Krist
+    -- Sum of all fixed rate pools' Krist, after correction
     local fixedRateSum = 0
     for id, pool in pools.pools() do
         local alloc = pool.dynAlloc
@@ -44,7 +44,6 @@ local function computeTargetDeltas()
         if alloc then
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
-                alloc.weight = 1 -- TODO REMOVE!
                 wremSum = wremSum + pool.allocatedKrist
             end
         end
@@ -72,7 +71,7 @@ local function computeTargetDeltas()
     -- Pools with a weight larger than average will expand
     -- Pools with a weight smaller than the average will contract
     local weightAvg =  weightSum / wremCount
-    if wremCount == 0 then return end
+    if wremCount == 0 then return positiveDeltas, negativeDeltas end
 
     -- The remainder gets distributed evenly among all pools
     -- After that, pools will reallocate accorting to their weight. Pools with a
@@ -84,7 +83,7 @@ local function computeTargetDeltas()
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
                 local myKstRatio = wremSum / pool.allocatedKrist
-                local remTarget = remainder * myKstRatio + pool.allocatedKrist
+                local remTarget = pool.allocatedKrist + remainder * myKstRatio
                 local allTarget = (alloc.weight / weightAvg) * remTarget
                 local delta = util.mFloor(allTarget - pool.allocatedKrist)
                 if delta > 0 then
