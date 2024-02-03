@@ -81,20 +81,22 @@ end
 --- @param kstToMove number
 --- @param commit boolean
 local function rebalance(kstToMove, commit)
+    kstToMove = util.mFloor(kstToMove)
+
     local positiveDeltas, negativeDeltas = computeTargetDeltas()
     local positiveKeys = shuffledKeys(positiveDeltas)
     local negativeKeys = shuffledKeys(negativeDeltas)
 
-    kstToMove = util.mFloor(kstToMove)
+    local negRemaining = kstToMove
     for i = 1, #negativeKeys do
-        if kstToMove <= 0 then break end
+        if negRemaining <= 0 then break end
         local id = negativeKeys[i]
         local pool = pools.get(id)
         if pool then
-            local delta = math.max(-kstToMove, negativeDeltas[id])
+            local delta = math.max(-negRemaining, negativeDeltas[id])
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
-            kstToMove = util.mFloor(kstToMove + delta)
+            negRemaining = util.mFloor(negRemaining + delta)
         end
     end
 
