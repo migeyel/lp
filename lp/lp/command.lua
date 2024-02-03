@@ -305,6 +305,7 @@ local function handleInfo(ctx)
 
     local pool = pools.getByTag(label)
     if pool then
+        local prod = pool.allocatedItems * pool.allocatedKrist
         return ctx.reply(
             {
                 text = ("Pool %q\n"):format(pool.label),
@@ -322,6 +323,12 @@ local function handleInfo(ctx)
                 text = ("- Allocated Krist: %g (%g%%)\n"):format(
                     pool.allocatedKrist,
                     util.mRound(100 * pool.allocatedKrist / pools.totalKrist())
+                ),
+            },
+            {
+                text = ("- k * i: %g (%g%%)\n"):format(
+                    prod,
+                    util.mRound(100 * prod / pools.totalProduct())
                 ),
             },
             {

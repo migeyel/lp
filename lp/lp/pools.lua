@@ -229,6 +229,14 @@ local function totalKrist()
     return poolKristSum
 end
 
+local function totalProduct()
+    local out = 0
+    for id, pool in pools() do
+        out = out + pool.allocatedItems * pool.allocatedKrist
+    end
+    return out
+end
+
 for _, p in pools() do
     local tag = p.label:gsub(" ", ""):lower()
     poolTags[tag] = p
@@ -243,6 +251,7 @@ return {
     categories = categories,
     pools = pools,
     totalKrist = totalKrist,
+    totalProduct = totalProduct,
     state = state,
     FEE_RATE = FEE_RATE,
 }
