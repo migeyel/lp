@@ -91,7 +91,7 @@ local function rebalance(kstToMove, commit)
         local id = negativeKeys[i]
         local pool = pools.get(id)
         if pool then
-            local delta = negativeDeltas[id]
+            local delta = math.max(-kstToMove, negativeDeltas[id])
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
             kstToMove = util.mFloor(kstToMove + delta)
@@ -104,7 +104,7 @@ local function rebalance(kstToMove, commit)
         local id = positiveKeys[i]
         local pool = pools.get(id)
         if pool then
-            local delta = positiveDeltas[id]
+            local delta = math.min(posRemaining, positiveDeltas[id])
             pool:reallocKst(delta, false)
             wallet.reallocateDyn(-delta, false)
             posRemaining = util.mFloor(posRemaining - delta)
