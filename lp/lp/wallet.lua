@@ -286,8 +286,7 @@ local function refundLostTxs()
 end
 
 local function reallocateDyn(delta, commit)
-    delta = math.max(delta, -state.dynFund)
-    state.dynFund = util.mFloor(state.dynFund + delta)
+    state.dynFund = util.mRound(state.dynFund + delta)
     if commit then state.commit() end
     return state.dynFund
 end
