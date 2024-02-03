@@ -1146,6 +1146,7 @@ local root = cbb.literal("lp") "lp" {
         }
     },
     cbb.literal("rebalance") "rebalance" {
+        help = "Displays information about pending rebalance reallocations",
         execute = handleRebalanceInfo,
         cbb.numberExpr "value" {
             execute = handleAllocRebalance,
