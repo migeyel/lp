@@ -28,12 +28,14 @@ local SOCKET_MAX_IDLE_MS = 30000
 ---@field roundingFund number
 ---@field feeFund number
 ---@field secFund number
+---@field dynFund number
 
 local state = require "lp.state".open "lp.wallet" --[[@as WalletState]]
 state.pendingout = state.pendingout or 0
 state.roundingFund = state.roundingFund or 0
 state.feeFund = state.feeFund or 0
 state.secFund = state.secFund or 0
+state.dynFund = state.dynFund or 0
 
 local pendingTxMutex = mutex()
 
@@ -47,6 +49,10 @@ end
 
 local function getSecFund()
     return state.secFund
+end
+
+local function getDynFund()
+    return state.dynFund
 end
 
 local isKristUp = false
@@ -301,6 +307,13 @@ local function reallocateSec(delta, commit)
     return state.secFund
 end
 
+local function reallocateDyn(delta, commit)
+    delta = math.max(delta, -state.dynFund)
+    state.dynFund = util.mFloor(state.dynFund + delta)
+    if commit then state.commit() end
+    return state.dynFund
+end
+
 local function reallocateRounding(delta, commit)
     delta = math.max(delta, -state.roundingFund)
     state.roundingFund = util.mFloor(state.roundingFund + delta)
@@ -524,9 +537,11 @@ return {
     reallocateRounding = reallocateRounding,
     reallocateFee = reallocateFee,
     reallocateSec = reallocateSec,
+    reallocateDyn = reallocateDyn,
     getRoundingFund = getRoundingFund,
     getFeeFund = getFeeFund,
     getSecFund = getSecFund,
+    getDynFund = getDynFund,
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,
     fetchBalance = fetchBalance,

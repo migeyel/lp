@@ -337,7 +337,18 @@ local function handleInfo(ctx)
             },
             {
                 text = ("- Trading Fees: %g%%"):format(100 * pool:getFeeRate()),
-            }
+            },
+            pool.dynAlloc and (
+                pool.dynAlloc.type == "fixed_rate" and {
+                    text = ("- Dynamic allocation: Fixed rate at %g%%"):format(
+                        100 * pool.dynAlloc.rate
+                    )
+                } or {
+                    text = ("- Dynamic allocation: Weighted w = %g%%"):format(
+                        pool.dynAlloc.weight
+                    )
+                }
+            ) or nil
         )
     else
         return ctx.replyErr(
@@ -713,6 +724,84 @@ local function handleAlloc(ctx)
 end
 
 ---@param ctx cbb.Context
+local function handleSetAllocFixedRate(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+    local rate = ctx.args.value ---@type number
+
+    if rate <= 0 or rate >= 1 then
+        return ctx.replyErr(
+            "Refusing to set the rate to possibly undesired value",
+            ctx.argTokens.value
+        )
+    end
+
+    local pool = pools.getByTag(label)
+    if pool then
+        pool.dynAlloc = {
+            type = "fixed_rate",
+            rate = rate,
+        }
+        pools.state.commit()
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+
+    ctx.reply { text = "success" }
+end
+
+---@param ctx cbb.Context
+local function handleSetAllocWeightedRemainder(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+    local weight = ctx.args.value ---@type number
+
+    if weight <= 0 then
+        return ctx.replyErr(
+            "Refusing to set the weight to possibly undesired value",
+            ctx.argTokens.value
+        )
+    end
+
+    local pool = pools.getByTag(label)
+    if pool then
+        pool.dynAlloc = {
+            type = "weighted_remainder",
+            weight = weight,
+        }
+        pools.state.commit()
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+
+    ctx.reply { text = "success" }
+end
+
+local function handleSetAllocStatic(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+
+    local pool = pools.getByTag(label)
+    if pool then
+        pool.dynAlloc = nil
+        pools.state.commit()
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+
+    ctx.reply { text = "success" }
+end
+
+---@param ctx cbb.Context
 local function handleKick(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local session = sessions.get()
@@ -943,6 +1032,19 @@ local root = cbb.literal("lp") "lp" {
     },
     cbb.literal("alloc") "alloc" {
         cbb.string "item" {
+            cbb.literal("rate") "rate" {
+                cbb.numberExpr "value" {
+                    execute = handleSetAllocFixedRate,
+                },
+            },
+            cbb.literal("weight") "weight" {
+                cbb.numberExpr "value" {
+                    execute = handleSetAllocWeightedRemainder,
+                },
+            },
+            cbb.literal("static") "static" {
+                execute = handleSetAllocStatic,
+            },
             cbb.numberExpr "amount" {
                 execute = handleAlloc,
             }
