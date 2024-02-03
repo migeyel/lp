@@ -156,13 +156,13 @@ local function rebalance(kstToMove, commit)
     if commit then wallet.state:commitMany(pools.state) end
 end
 
--- threads.register(function()
---     while true do
---         sleep(math.random(0, 2 * MEAN_ALLOCATION_TIME))
---         local amt = -1 / KRIST_RATE * math.log(1 - math.random())
---         rebalance(amt, true)
---     end
--- end)
+threads.register(function()
+    while true do
+        sleep(math.random(0, 2 * MEAN_ALLOCATION_TIME))
+        local amt = -1 / KRIST_RATE * math.log(1 - math.random())
+        rebalance(amt, true)
+    end
+end)
 
 return {
     computeTargetDeltas = computeTargetDeltas,
