@@ -82,7 +82,7 @@ local function computeTargetDeltas()
         if alloc then
             if alloc.type == "weighted_remainder" then
                 ---@cast alloc WeightedRemainderScheme
-                local myKstRatio = wremSum / pool.allocatedKrist
+                local myKstRatio = pool.allocatedKrist / wremSum
                 local remTarget = pool.allocatedKrist + remainder * myKstRatio
                 local allTarget = (alloc.weight / weightAvg) * remTarget
                 local delta = util.mFloor(allTarget - pool.allocatedKrist)
