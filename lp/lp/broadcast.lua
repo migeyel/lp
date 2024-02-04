@@ -27,6 +27,8 @@ local function collect()
     }
 
     for _, pool in pools.pools() do
+        if pool:isDigital() then goto continue end
+
         -- Buy entry
         out.items[#out.items + 1] = {
             prices = {
@@ -64,6 +66,8 @@ local function collect()
             dynamicPrice = true,
             stock = pool.allocatedItems,
         }
+
+        ::continue::
     end
 
     return out

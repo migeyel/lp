@@ -5,7 +5,7 @@
 -- inventory.
 --
 
-local FEE_RATE = 0.05 -- TODO configure
+local FEE_RATE = 0.05
 
 local state = require "lp.state".open "lp.pools"
 local event = require "lp.event"
@@ -132,6 +132,10 @@ function Pool:toggleCategory(label, commit)
     end
     if commit then state.commit() end
     return cat[self:id()]
+end
+
+function Pool:isDigital()
+    return self:id():sub(1, 3) == "lp:"
 end
 
 function Pool:id()

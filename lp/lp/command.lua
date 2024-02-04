@@ -180,7 +180,17 @@ local function handleBuy(ctx)
                 )
             )
         end
-        if session:tryBuy(pool, amount, true) then
+        if pool:isDigital() then
+            if session:tryBuy(pool, amount, false) then
+                session:account():transferAsset(pool:id(), amount, true)
+                log:info(("%s bought %d units of %q for %g"):format(
+                    ctx.user,
+                    amount,
+                    pool.label,
+                    price
+                ))
+            end
+        elseif session:tryBuy(pool, amount, true) then
             log:info(("%s bought %d units of %q for %g"):format(
                 ctx.user,
                 amount,
@@ -375,9 +385,19 @@ end
 ---@param ctx cbb.Context
 local function handleBalance(ctx)
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
-    return ctx.reply({
-        text = ("Your balance is %g KST"):format(acct.balance)
-    })
+
+    local out = {{ ---@type cbb.FormattedBlock[]
+        text = ("Balance:\n- Krist: %g KST"):format(acct.balance)
+    }}
+
+    for id, amt in pairs(acct.assets) do
+        local pool = pools.get(id)
+        out[#out + 1] = {
+            text = ("\n- %s: %g"):format(pool and pool.label or id, amt),
+        }
+    end
+
+    return ctx.reply(table.unpack(out))
 end
 
 ---@param ctx cbb.Context
@@ -790,11 +810,28 @@ local function handleSetAllocStatic(ctx)
     ctx.reply { text = "success" }
 end
 
+---@param ctx cbb.Context
 local function handleAllocRebalance(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local toMove = ctx.args.value ---@type number
     allocation.rebalance(toMove, true)
     ctx.reply { text = "success" }
+end
+
+---@param ctx cbb.Context
+local function handleMint(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local id = ctx.args.id ---@type string
+    local amount = ctx.args.amount ---@type number
+
+    if not id:match("^lp:[^~]*~NONE$") then
+        return ctx.replyErr("Not a valid asset ID", ctx.argTokens.id)
+    end
+
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local _, bal = acct:transferAsset(id, amount, true)
+
+    ctx.reply { text = "Balance: " .. tostring(bal) }
 end
 
 ---@param ctx cbb.Context
@@ -1112,7 +1149,14 @@ local root = cbb.literal("lp") "lp" {
     },
     cbb.literal("kick") "kick" {
         execute = handleKick,
-    }
+    },
+    cbb.literal("mint") "mint" {
+        cbb.string "id" {
+            cbb.numberExpr "amount" {
+                execute = handleMint,
+            },
+        },
+    },
 }
 
 local ChatboxReadyEvent = event.register("chatbox_ready")

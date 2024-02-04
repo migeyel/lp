@@ -57,6 +57,7 @@ end
 ---@class Account
 ---@field username string
 ---@field balance number
+---@field assets table<string, number?>?
 ---@field uuid string
 ---@field storageFrequency number|nil
 ---@field persist true|nil
@@ -140,16 +141,51 @@ end
 ---@return number newDelta The true transferred amount.
 ---@return number newBal The remaining balance of the account.
 function Account:transfer(delta, commit)
-    delta = math.max(delta, -self.balance)
-    accountBalanceSum = accountBalanceSum - self.balance
-    self.balance = util.mFloor(self.balance + delta)
-    accountBalanceSum = accountBalanceSum + self.balance
+    local balance = self.balance
+    delta = math.max(delta, -balance)
+    accountBalanceSum = accountBalanceSum - balance
+    balance = util.mFloor(balance + delta)
+    accountBalanceSum = accountBalanceSum + balance
+    self.balance = balance
+
     if commit then state.commit() end
+
     local session = state.session
     if session and session:account() == self then
        sessionBalChangeEvent.queue(self.uuid)
     end
-    return delta, self.balance
+
+    return delta, balance
+end
+
+---@param id string
+---@return number
+function Account:getAsset(id)
+    if not self.assets then return 0 end
+    return self.assets[id] or 0
+end
+
+---@param id string
+---@param amount number
+function Account:setAsset(id, amount)
+    if not self.assets then self.assets = {} end
+    self.assets[id] = amount ~= 0 and amount or nil
+end
+
+---@param id string
+---@param delta number
+---@param commit boolean
+---@return number newDelta The true transferred amount.
+---@return number newBal The remaining securities balance of the account.
+function Account:transferAsset(id, delta, commit)
+    local balance = self:getAsset(id)
+    delta = math.max(delta, -balance)
+    balance = util.mFloor(balance + delta)
+    self:setAsset(id, balance)
+
+    if commit then state.commit() end
+
+    return delta, balance
 end
 
 --- AAAAHHH PASSING `commit` IN AS A BOOLEAN ISN'T COMPOSABLE AT ALL!
@@ -172,15 +208,35 @@ end
 ---@param commit boolean
 ---@return boolean
 function Account:tryTransfer(delta, commit)
-    if self.balance < -delta then return false end
-    accountBalanceSum = accountBalanceSum - self.balance
-    self.balance = self.balance + delta
-    accountBalanceSum = accountBalanceSum + self.balance
+    local balance = self.balance
+    if balance < -delta then return false end
+    accountBalanceSum = accountBalanceSum - balance
+    balance = balance + delta
+    accountBalanceSum = accountBalanceSum + balance
+    self.balance = balance
+
     if commit then state.commit() end
+
     local session = state.session
     if session and session:account() == self then
        sessionBalChangeEvent.queue(self.uuid)
     end
+
+    return true
+end
+
+---@param id string
+---@param delta number
+---@param commit boolean
+---@return boolean
+function Account:tryTransferAsset(id, delta, commit)
+    local balance = self:getAsset(id)
+    if balance < -delta then return false end
+    balance = balance + delta
+    self:setAsset(id, balance)
+
+    if commit then state.commit() end
+
     return true
 end
 

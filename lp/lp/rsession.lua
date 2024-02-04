@@ -46,7 +46,7 @@ local function handleInfo(uss, id, rch, uuid, info)
     end
 
     local pool = pools.getByTag(info.label)
-    if not pool then
+    if not pool or pool:isDigital() then
         return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
@@ -115,7 +115,7 @@ local function handleBuy(uss, id, rch, uuid, buy)
     end
 
     local pool = pools.getByTag(buy.label)
-    if not pool then
+    if not pool or pool:isDigital() then
         return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {
@@ -326,7 +326,7 @@ local function handleSell(uss, id, rch, uuid, sell)
     local item, nbt = detail.name, detail.nbt or "NONE"
     local poolId = item .. "~" .. nbt
     local pool = pools.get(poolId)
-    if not pool then
+    if not pool or pool:isDigital() then
         return send(uss, rch, uuid, proto.Response.serialize {
             id = id,
             failure = {

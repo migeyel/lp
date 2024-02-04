@@ -8,7 +8,9 @@ local SEC_ITEMS_MAX_REALLOC_PART = 8
 
 ---@return Pool
 local function getSecPool()
-    return assert(pools.getByTag(SECURITY_TAG), "failed to find sec pool")
+    local out = assert(pools.getByTag(SECURITY_TAG), "failed to find sec pool")
+    assert(not out:isDigital())
+    return out
 end
 
 local function reallocItems()
