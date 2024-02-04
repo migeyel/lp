@@ -9,7 +9,6 @@ local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
 local wallet = require "lp.wallet"
-local secprice = require "lp.secprice"
 local allocation = require "lp.allocation"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
@@ -71,6 +70,21 @@ local function tryStartSession(ctx)
     local session = sessions.create(ctx.data.user.uuid, ctx.user, true)
     if session then
         log:info("Started a session for " .. ctx.user)
+        ctx.reply(
+            {
+                text = "LP Notice\n",
+                formats = { cbb.formats.BOLD },
+            },
+            {
+                text = table.concat {
+                    "Starting from 2024-02-04, LP Securities ownership will ",
+                    "now be tracked digitally. This measure aims to save on ",
+                    "ink costs as well as improve bookkeeping. Dropping books ",
+                    "in a session now brings them into \\lp balance. To sell, ",
+                    "use \\lp sell.",
+                },
+            }
+        )
         return session
     else
         return ctx.replyErr("Another session is already in place")
@@ -190,6 +204,13 @@ local function handleBuy(ctx)
                     pool.label,
                     price
                 ))
+                ctx.reply({
+                    text = ("Bought %d units of %q for %g"):format(
+                        amount,
+                        pool.label,
+                        price
+                    )
+                })
             end
         elseif session:tryBuy(pool, amount, true) then
             log:info(("%s bought %d units of %q for %g"):format(
@@ -260,6 +281,13 @@ local function handleSell(ctx)
                 pool.label,
                 price
             ))
+            ctx.reply({
+                text = ("Sold %d units of %q for %g"):format(
+                    amount,
+                    pool.label,
+                    price
+                ),
+            })
         end
     else
         return ctx.replyErr(
@@ -271,9 +299,6 @@ end
 
 ---@param ctx cbb.Context
 local function handleSysInfo(ctx)
-    local secPool = secprice.getSecPool()
-    local secInv = inventory.getSec()
-    local secCount = secInv.getCount(secPool.item, secPool.nbt)
     local usage = inv.get().getUsage()
     local totalKrist = wallet.getIsKristUp() and wallet.fetchBalance()
     local allocPools = pools.totalKrist()
@@ -301,11 +326,6 @@ local function handleSysInfo(ctx)
                     usage.free,
                     util.mRound(100 * usage.free / usage.total)
                 ),
-            },
-            {
-                text = ("  - Issued securities reserve: %g items\n"):format(
-                    secCount
-                )
             },
             {
                 text = totalKrist

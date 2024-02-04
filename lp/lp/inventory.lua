@@ -6,8 +6,6 @@ local invStartupMutex = mutex()
 local inv = nil
 local started = false
 
-local SECURITIES_INV = "sc-goodies:shulker_box_diamond_1106"
-
 ---@return AbstractInventory
 local function get()
     if started then return inv end
@@ -48,16 +46,11 @@ local function get()
     return linv
 end
 
-local function getSec()
-    return abstractInvLib({ SECURITIES_INV })
-end
-
 local turtleMutexes = {}
 for i = 1, 16 do turtleMutexes[i] = mutex() end
 
 return {
     get = get,
-    getSec = getSec,
     turtleMutexes = turtleMutexes, -- Inventory operations
     turtleMutex = mutex(), -- Changing the selected slot
 }
