@@ -182,7 +182,8 @@ local function handleBuy(ctx)
         end
         if pool:isDigital() then
             if session:tryBuy(pool, amount, false) then
-                session:account():transferAsset(pool:id(), amount, true)
+                session:account():transferAsset(pool:id(), amount, false)
+                pools.state:commitMany(sessions.state)
                 log:info(("%s bought %d units of %q for %g"):format(
                     ctx.user,
                     amount,
@@ -220,6 +221,49 @@ local function handleBuy(ctx)
     else
         return ctx.replyErr(
             ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+end
+
+---@param ctx cbb.Context
+local function handleSell(ctx)
+    local label = ctx.args.item ---@type string
+    local amount = ctx.args.amount ---@type integer
+
+    local session = sessions.get()
+    if not session then
+        session = tryStartSession(ctx)
+        if not session then return end
+    elseif ctx.data.user.uuid ~= session.uuid then
+        return ctx.replyErr("Start a session first with \\lp start")
+    end
+
+    amount = math.floor(math.max(0, math.min(65536, amount)))
+    local pool = pools.getByTag(label)
+    if pool and pool:isDigital() then
+        if session:account():getAsset(pool:id()) < amount then
+            return ctx.replyErr(
+                ("You don't have the %g items necessary to buy this"):format(
+                    amount
+                )
+            )
+        end
+
+        local price = session:sellPriceWithFee(pool, amount)
+        if session:account():tryTransferAsset(pool:id(), -amount, false) then
+            session:sell(pool, amount, false)
+            pools.state:commitMany(sessions.state)
+            log:info(("%s sold %d units of %q for %g"):format(
+                ctx.user,
+                amount,
+                pool.label,
+                price
+            ))
+        end
+    else
+        return ctx.replyErr(
+            ("The item pool %q isn't digital"):format(label),
             ctx.argTokens.item
         )
     end
@@ -1048,6 +1092,14 @@ local root = cbb.literal("lp") "lp" {
             cbb.integerExpr "amount" {
                 help = "Buys an item",
                 execute = handleBuy,
+            },
+        },
+    },
+    cbb.literal("sell") "sell" {
+        cbb.string "item" {
+            cbb.integerExpr "amount" {
+                help = "Sells a digital item",
+                execute = handleSell,
             },
         },
     },
