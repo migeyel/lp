@@ -390,7 +390,7 @@ local function handleBalance(ctx)
         text = ("Balance:\n- Krist: %g KST"):format(acct.balance)
     }}
 
-    for id, amt in pairs(acct.assets) do
+    for id, amt in pairs(acct.assets or {}) do
         local pool = pools.get(id)
         out[#out + 1] = {
             text = ("\n- %s: %g"):format(pool and pool.label or id, amt),
