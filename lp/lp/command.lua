@@ -172,7 +172,7 @@ local function handleBuy(ctx)
     amount = math.floor(math.max(0, math.min(65536, amount)))
     local pool = pools.getByTag(label)
     if pool then
-        local price = session:buyPriceWithFee(pool, amount)
+        local price = util.mCeil(pool:buyPrice(amount) + pool:buyFee(amount))
         if price > session:balance() then
             return ctx.replyErr(
                 ("You don't have the %g KST necessary to buy this"):format(
@@ -250,7 +250,7 @@ local function handleSell(ctx)
             )
         end
 
-        local price = session:sellPriceWithFee(pool, amount)
+        local price = util.mFloor(pool:sellPrice(amount) - pool:sellFee(amount))
         if session:account():tryTransferAsset(pool:id(), -amount, false) then
             session:sell(pool, amount, false)
             pools.state:commitMany(sessions.state)

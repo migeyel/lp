@@ -285,16 +285,8 @@ local function addListing(listingFrame, pool, index)
     local updateListing = nil
     local quoteLabels = {}
     for i, amt in ipairs(AMOUNTS_TO_QUOTE_PRICES_AT) do
-        local session = sessions.get()
-        local buyPrice, sellPrice
-        if session then
-            buyPrice = session:buyPriceWithFee(pool, amt)
-            sellPrice = session:sellPriceWithFee(pool, amt)
-        else
-            buyPrice = pool:buyPrice(amt) + pool:buyFee(amt)
-            sellPrice = pool:sellPrice(amt) - pool:sellFee(amt)
-        end
-
+        local buyPrice = util.mCeil(pool:buyPrice(amt) + pool:buyFee(amt))
+        local sellPrice = util.mFloor(pool:sellPrice(amt) - pool:sellFee(amt))
         local avgBuyPrice = util.mCeil(buyPrice / amt)
         local avgSellPrice = util.mFloor(sellPrice / amt)
 
@@ -346,16 +338,8 @@ local function addListing(listingFrame, pool, index)
             :setForeground(fg)
 
         for i, amt in ipairs(AMOUNTS_TO_QUOTE_PRICES_AT) do
-            local session = sessions.get()
-            local buyPrice, sellPrice
-            if session then
-                buyPrice = session:buyPriceWithFee(pool, amt)
-                sellPrice = session:sellPriceWithFee(pool, amt)
-            else
-                buyPrice = pool:buyPrice(amt) + pool:buyFee(amt)
-                sellPrice = pool:sellPrice(amt) - pool:sellFee(amt)
-            end
-
+            local buyPrice = util.mCeil(pool:buyPrice(amt) + pool:buyFee(amt))
+            local sellPrice = util.mFloor(pool:sellPrice(amt) - pool:sellFee(amt))
             local avgBuyPrice = util.mCeil(buyPrice / amt)
             local avgSellPrice = util.mFloor(sellPrice / amt)
 
