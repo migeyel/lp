@@ -326,12 +326,12 @@ function Proposition:render()
                 self.action.type == "fee" and
                     ("\nAction: %s.feeRate *= %g"):format(
                         self.action.poolId,
-                        1 + self.action.multiplier
+                        self.action.multiplier
                     ) or
                 self.action.type == "weight" and
                     ("\nAction: %s.weight *= %g"):format(
                         self.action.poolId,
-                        1 + self.action.multiplier
+                        self.action.multiplier
                     )
                 or "\nAction: ?"
             ) or "",
