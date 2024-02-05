@@ -948,6 +948,9 @@ local function handleAllocRebalance(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local toMove = ctx.args.value ---@type number
     allocation.rebalance(toMove, true)
+    local pool = secprice.getSecPool()
+    local itemsToMove = toMove / pool:midPrice()
+    secprice.reallocItems(itemsToMove)
     ctx.reply { text = "success" }
 end
 
