@@ -1,9 +1,11 @@
 local pools = require "lp.pools"
 local threads = require "lp.threads"
+local sessions = require "lp.sessions"
 
 local SECURITY_TAG = "LP Security"
-local SEC_ITEMS_TARGET = 512
-local SEC_ITEMS_MAX_REALLOC_PART = 8
+local SEC_ITEMS_TARGET_FRAC = 0.1
+local SEC_ITEMS_MAX_REALLOC_PART = 1
+local MEAN_REALLOCATION_TIME = 300
 
 ---@return Pool
 local function getSecPool()
@@ -12,7 +14,12 @@ end
 
 local function reallocItems()
     local pool = getSecPool()
-    local diff = SEC_ITEMS_TARGET - pool.allocatedItems
+    local total = pool.allocatedItems
+    for _, account in sessions.accounts() do
+        total = total + account:getAsset(pool:id())
+    end
+    local target = math.floor(SEC_ITEMS_TARGET_FRAC * total + 0.5)
+    local diff = target - pool.allocatedItems
     if diff == 0 then return end
     diff = math.min(SEC_ITEMS_MAX_REALLOC_PART, diff)
     diff = math.max(-SEC_ITEMS_MAX_REALLOC_PART, diff)
@@ -21,10 +28,8 @@ end
 
 threads.register(function()
     while true do
-        sleep(1)
-        if math.random(1, 300) == 1 then
-            reallocItems()
-        end
+        sleep(math.random(0, MEAN_REALLOCATION_TIME))
+        reallocItems()
     end
 end)
 

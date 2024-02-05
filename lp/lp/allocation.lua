@@ -4,7 +4,7 @@ local util = require "lp.util"
 local threads = require "lp.threads"
 
 local MEAN_ALLOCATION_TIME = 300
-local KRIST_RATE = 1 / 3
+local KRIST_RATE = 1
 
 local function computeTargetDeltas()
     -- Sum of all dynamic allocated pools' Krist
