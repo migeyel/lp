@@ -165,7 +165,7 @@ local function handlePay(ctx)
             color = cbb.colors.GREEN,
         },
         {
-            text = ctx.args.receiver,
+            text = receiver.username,
             color = cbb.colors.AQUA,
         }
     )
