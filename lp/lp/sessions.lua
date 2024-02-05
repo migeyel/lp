@@ -272,8 +272,6 @@ end
 local function create(uuid, username, commit)
     if get() then return end
 
-    username = username:lower()
-
     setAcct(uuid, username, false)
 
     state.session = {
