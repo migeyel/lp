@@ -3,7 +3,7 @@ local threads = require "lp.threads"
 local sessions = require "lp.sessions"
 
 local SECURITY_TAG = "LP Security"
-local SEC_ITEMS_TARGET_FRAC = 0.1
+local SEC_ITEMS_TARGET_FRAC = 0.05
 local SEC_ITEMS_MAX_REALLOC_PART = 1
 local MEAN_REALLOCATION_TIME = 300
 
