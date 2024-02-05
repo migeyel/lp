@@ -483,6 +483,7 @@ local function handleBaltopKst(ctx)
 
     local out = {{ text = "Top Krist balances:" }} ---@type cbb.FormattedBlock[]
     for i = 1, 10 do
+        if arr[i].balance == 0 then break end
         out[#out + 1] = {
             text = ("\n- %s: %g KST"):format(
                 arr[i].username,
@@ -518,10 +519,11 @@ local function handleBaltopAsset(ctx)
     }} ---@type cbb.FormattedBlock[]
 
     for i = 1, 10 do
+        if arr[i]:getAsset(id) == 0 then break end
         out[#out + 1] = {
-            text = ("\n- %s: %g KST"):format(
+            text = ("\n- %s: %g"):format(
                 arr[i].username,
-                arr[i].balance
+                arr[i]:getAsset(id)
             )
         }
     end
