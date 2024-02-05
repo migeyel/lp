@@ -12,18 +12,9 @@ local function getSecPool()
     return assert(pools.getByTag(SECURITY_TAG), "failed to find sec pool")
 end
 
-local function getSecTotal()
-    local pool = getSecPool()
-    local total = pool.allocatedItems
-    for _, account in sessions.accounts() do
-        total = total + account:getAsset(pool:id())
-    end
-    return total
-end
-
 local function reallocItems()
     local pool = getSecPool()
-    local total = getSecTotal()
+    local total = pool.allocatedItems + sessions.totalAssets(pool:id())
     local target = math.floor(SEC_ITEMS_TARGET_FRAC * total + 0.5)
     local diff = target - pool.allocatedItems
     if diff == 0 then return end
@@ -41,5 +32,4 @@ end)
 
 return {
     getSecPool = getSecPool,
-    getSecTotal = getSecTotal,
 }

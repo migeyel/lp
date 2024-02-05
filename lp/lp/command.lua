@@ -309,6 +309,8 @@ local function handleSysInfo(ctx)
         - allocPools
         - allocAccts
         - allocDyn
+    local secPool = secprice.getSecPool()
+    local secTotal = secPool.allocatedItems + sessions.totalAssets(secPool:id())
     return ctx.reply(
             {
                 text = "LP System Info\n",
@@ -373,7 +375,7 @@ local function handleSysInfo(ctx)
             },
             {
                 text = ("- Total issued securities: %g"):format(
-                    secprice.getSecTotal()
+                    secTotal
                 )
             }
         )
@@ -468,6 +470,60 @@ local function handleBalance(ctx)
     end
 
     return ctx.reply(table.unpack(out))
+end
+
+local function handleBaltopKst()
+    local arr = {} ---@type Account[]
+    for _, acct in sessions.accounts() do
+        arr[#arr + 1] = acct
+    end
+
+    table.sort(arr, function(a, b) return a.balance > b.balance end)
+
+    local out = {{ text = "Top Krist balances:" }} ---@type cbb.FormattedBlock[]
+    for i = 1, 10 do
+        out[#out + 1] = {
+            text = ("\n- %s: %g KST"):format(
+                arr[i].username,
+                arr[i].balance
+            )
+        }
+    end
+
+    return cbb.reply(table.unpack(out))
+end
+
+---@param ctx cbb.Context
+local function handleBaltopAsset(ctx)
+    local tag = ctx.args.asset
+    local pool = pools.getByTag(tag)
+    if not pool or not pool:isDigital() then
+        return ctx.replyErr(
+            "This asset does not match any digital pool",
+            ctx.argTokens.asset
+        )
+    end
+
+    local id = pool:id()
+    local arr = {} ---@type Account[]
+    for _, acct in sessions.accounts() do
+        arr[#arr + 1] = acct
+    end
+
+    table.sort(arr, function(a, b) return a:getAsset(id) > b:getAsset(id) end)
+
+    local out = {{
+        text = ("Top %s balances:"):format(pool.label)
+    }} ---@type cbb.FormattedBlock[]
+
+    for i = 1, 10 do
+        out[#out + 1] = {
+            text = ("\n- %s: %g KST"):format(
+                arr[i].username,
+                arr[i].balance
+            )
+        }
+    end
 end
 
 ---@param ctx cbb.Context
@@ -1168,6 +1224,14 @@ local root = cbb.literal("lp") "lp" {
         help = "Displays your balance",
         execute = handleBalance,
     },
+    cbb.literal("baltop") "baltop" {
+        help = "Displays top Krist balances",
+        execute = handleBaltopKst,
+        cbb.string "asset" {
+            help = "Displays top asset balances",
+            execute = handleBaltopAsset,
+        },
+    },
     cbb.literal("withdraw") "withdraw" {
         cbb.integerExpr "amount" {
             help = "Withdraws Krist from your account",
@@ -1180,11 +1244,6 @@ local root = cbb.literal("lp") "lp" {
         }
     },
     cbb.literal("fund") "fund" {
-        cbb.literal("fee") "fee" {
-            cbb.numberExpr "amount" {
-                execute = handleFeeRealloc,
-            }
-        },
         cbb.literal("dyn") "dyn" {
             cbb.numberExpr "amount" {
                 execute = handleDynRealloc,

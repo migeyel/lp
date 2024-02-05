@@ -8,6 +8,9 @@ local wallet = require "lp.wallet"
 
 local accountBalanceSum = 0
 
+---@type table<string, number?>
+local assetSums = {}
+
 ---@type table<string, Account|nil>
 state.accounts = state.accounts or {}
 
@@ -19,6 +22,9 @@ for _, v in pairs(state.accounts) do
         uuidIndex[v.username] = v.uuid
     end
     accountBalanceSum = accountBalanceSum + v.balance
+    for k, a in pairs(v.assets) do
+        assetSums[k] = (assetSums[k] or 0) + a
+    end
 end
 
 ---@type Session|nil
@@ -180,7 +186,9 @@ end
 function Account:transferAsset(id, delta, commit)
     local balance = self:getAsset(id)
     delta = math.max(delta, -balance)
+    assetSums[id] = (assetSums[id] or 0) - balance
     balance = util.mFloor(balance + delta)
+    assetSums[id] = (assetSums[id] or 0) + balance
     self:setAsset(id, balance)
 
     if commit then state.commit() end
@@ -232,7 +240,9 @@ end
 function Account:tryTransferAsset(id, delta, commit)
     local balance = self:getAsset(id)
     if balance < -delta then return false end
+    assetSums[id] = assetSums[id] - balance
     balance = balance + delta
+    assetSums[id] = assetSums[id] + balance
     self:setAsset(id, balance)
 
     if commit then state.commit() end
@@ -405,6 +415,10 @@ local function totalBalances()
     return accountBalanceSum
 end
 
+local function totalAssets(id)
+    return assetSums[id] or 0
+end
+
 return {
     ECHEST_ALLOCATION_PRICE = ECHEST_ALLOCATION_PRICE,
     startEvent = startEvent,
@@ -419,5 +433,6 @@ return {
     get = get,
     create = create,
     totalBalances = totalBalances,
+    totalAssets = totalAssets,
     state = state,
 }
