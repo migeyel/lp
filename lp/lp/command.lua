@@ -15,6 +15,7 @@ local propositions = require "lp.propositions"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
+local PROP_AUTHOR_LIMIT = 3
 
 local chatbox = chatbox
 if not chatbox then
@@ -1151,14 +1152,93 @@ end
 
 ---@param ctx cbb.Context
 local function handlePropose(ctx)
-    if ctx.user:lower() ~= "pg231" then return end -- lazy
     local title = ctx.args.title ---@type string
     local description = ctx.args.description ---@type string
 
+    title = title:sub(1, 192)
+
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local props = propositions.countOwnedActive(author)
+    if props > PROP_AUTHOR_LIMIT then
+        return ctx.replyErr("You have too many active propositions already")
+    end
+
     propositions.create(author, title, description, true)
 
-    ctx.reply({ text = "success" })
+    ctx.reply({
+        text = ("Success. You have %d active propositions remaining."):format(
+            PROP_AUTHOR_LIMIT - props - 1
+        )
+    })
+end
+
+---@param ctx cbb.Context
+local function handleProposeFee(ctx)
+    local label = ctx.args.pool ---@type string
+    local multiplier = ctx.args.multipler ---@type number
+    local description = ctx.args.description ---@type string
+
+    multiplier = math.min(2, math.max(0.5, multiplier))
+
+    local pool = pools.getByTag(label)
+    if not pool then
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.pool
+        )
+    end
+
+    local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local props = propositions.countOwnedActive(author)
+    if props > PROP_AUTHOR_LIMIT then
+        return ctx.replyErr("You have too many active propositions already")
+    end
+
+    propositions.createPropFee(author, description, pool, multiplier, true)
+
+    ctx.reply({
+        text = ("Success. You have %d active propositions remaining."):format(
+            PROP_AUTHOR_LIMIT - props - 1
+        )
+    })
+end
+
+---@param ctx cbb.Context
+local function handleProposeWeight(ctx)
+    local label = ctx.args.pool ---@type string
+    local multiplier = ctx.args.multipler ---@type number
+    local description = ctx.args.description ---@type string
+
+    multiplier = math.min(2, math.max(0.5, multiplier))
+
+    local pool = pools.getByTag(label)
+    if not pool then
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.pool
+        )
+    end
+
+    if not pool.dynAlloc or pool.dynAlloc.type ~= "weighted_remainder" then
+        return ctx.replyErr(
+            ("The item pool %q can't be reallocated"):format(label),
+            ctx.argTokens.pool
+        )
+    end
+
+    local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local props = propositions.countOwnedActive(author)
+    if props > PROP_AUTHOR_LIMIT then
+        return ctx.replyErr("You have too many active propositions already")
+    end
+
+    propositions.createPropFee(author, description, pool, multiplier, true)
+
+    ctx.reply({
+        text = ("Success. You have %d active propositions remaining."):format(
+            PROP_AUTHOR_LIMIT - props - 1
+        )
+    })
 end
 
 local function handleDelProp(ctx)
@@ -1183,6 +1263,10 @@ local function handleVote(ctx)
     local prop = propositions.get(id)
     if not prop then
         return ctx.replyErr("This proposition doesn't exist", ctx.argTokens.id)
+    end
+
+    if prop.expired then
+        return ctx.replyErr("This proposition is expired", ctx.argTokens.id)
     end
 
     prop:cast(voter, ratio, true)
@@ -1482,9 +1566,32 @@ local root = cbb.literal("lp") "lp" {
             },
         },
         cbb.literal("new") "new" {
-            cbb.string "title" {
-                cbb.string "description" {
-                    execute = handlePropose,
+            cbb.literal("consultation") "consultation" {
+                cbb.string "title" {
+                    cbb.string "description" {
+                        help = "Creates a new consultative proposition",
+                        execute = handlePropose,
+                    },
+                },
+            },
+            cbb.literal("fee") "fee" {
+                cbb.string "pool" {
+                    cbb.numberExpr "multipler" {
+                        cbb.string "description" {
+                            help = "Creates a proposition to modify a fee rate",
+                            execute = handleProposeFee,
+                        },
+                    },
+                },
+            },
+            cbb.literal("fee") "weight" {
+                cbb.string "pool" {
+                    cbb.numberExpr "multipler" {
+                        cbb.string "description" {
+                            help = "Creates a proposition to modify an allocation weight",
+                            execute = handleProposeWeight,
+                        },
+                    },
                 },
             },
         },

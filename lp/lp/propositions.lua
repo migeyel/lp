@@ -3,6 +3,7 @@ local secprice = require "lp.secprice"
 local sessions = require "lp.sessions"
 local threads = require "lp.threads"
 local cbb = require "cbb"
+local pools = require "lp.pools"
 
 ---@type table<number, Proposition?>
 state.propositions = state.propositions or {}
@@ -11,8 +12,21 @@ state.propositions = state.propositions or {}
 state.nextId = state.nextId or 1
 
 local TALLY_GRAPHIC_WIDTH = 150
+local EXPIRED_KEEP_MS = 7 * 24 * 3600 * 1000
+local QUORUM = 0.33
+
+---@class PropFeeAction
+---@field type "fee"
+---@field poolId string
+---@field multiplier number
+
+---@class PropWeightAction
+---@field type "weight"
+---@field poolId string
+---@field multiplier number
 
 ---@class Proposition
+---@field action PropFeeAction | PropWeightAction | nil
 ---@field id number
 ---@field authorUuid string
 ---@field title string
@@ -36,6 +50,86 @@ local function getExpiration()
     local secondsToSaturday = daysToSaturday * 24 * 3600
     local secsToSundayMidnight = secondsToSaturday + secsToMidnight
     return now + 1000 * secsToSundayMidnight
+end
+
+---@param author Account
+---@param description string
+---@param pool Pool
+---@param multiplier number
+---@param commit boolean
+---@return Proposition
+local function createPropFee(author, description, pool, multiplier, commit)
+    local percent = 100 * multiplier
+    local title = ("Sets fee rates on %q to %g%% of their current value"):format(
+        pool.label,
+        percent
+    )
+
+    local prop = { ---@type Proposition
+        id = state.nextId,
+        authorUuid = author.uuid,
+        title = title,
+        action = {
+            type = "fee",
+            poolId = pool:id(),
+            multiplier = multiplier,
+        },
+        expired = false,
+        sharesFor = 0,
+        sharesAgainst = 0,
+        sharesNone = 0,
+        description = description,
+        created = os.epoch("utc"),
+        expiry = getExpiration(),
+        votes = {},
+    }
+
+    state.propositions[prop.id] = prop
+    state.nextId = state.nextId + 1
+
+    if commit then state.commit() end
+
+    return setmetatable(prop, { __index = Proposition })
+end
+
+---@param author Account
+---@param description string
+---@param pool Pool
+---@param multiplier number
+---@param commit boolean
+---@return Proposition
+local function createPropWeight(author, description, pool, multiplier, commit)
+    local percent = 100 * multiplier
+    local title = ("Sets %q to %g%% of its current allocation size"):format(
+        pool.label,
+        percent
+    )
+
+    local prop = { ---@type Proposition
+        id = state.nextId,
+        authorUuid = author.uuid,
+        title = title,
+        action = {
+            type = "weight",
+            poolId = pool:id(),
+            multiplier = multiplier,
+        },
+        expired = false,
+        sharesFor = 0,
+        sharesAgainst = 0,
+        sharesNone = 0,
+        description = description,
+        created = os.epoch("utc"),
+        expiry = getExpiration(),
+        votes = {},
+    }
+
+    state.propositions[prop.id] = prop
+    state.nextId = state.nextId + 1
+
+    if commit then state.commit() end
+
+    return setmetatable(prop, { __index = Proposition })
 end
 
 ---@param author Account
@@ -87,6 +181,12 @@ local function expireProps()
     for _, prop in propositions() do
         prop:tryExpire(true)
     end
+    for id, prop in pairs(state.propositions) do
+        if prop.expired and os.epoch("utc") >= prop.expiry + EXPIRED_KEEP_MS then
+            state.propositions[id] = nil
+        end
+    end
+    state.commit()
 end
 
 ---@param commit boolean
@@ -117,12 +217,40 @@ end
 ---@param commit boolean
 function Proposition:tryExpire(commit)
     if not self.expired and os.epoch("utc") >= self.expiry then
+        -- Expire
         local tally = self:computeTally()
         self.sharesFor = tally.yes
         self.sharesAgainst = tally.no
         self.sharesNone = tally.none
         self.expired = true
-        if commit then state.commit() end
+
+        -- Check for validity
+        local total = tally.yes + tally.no + tally.none
+        local votes = tally.yes + tally.no
+        if votes >= total * QUORUM and tally.yes > tally.no then
+            -- Execute actions
+            if self.action.type == "fee" then
+                local pool = pools.get(self.action.poolId)
+                if pool then
+                    local feeRate = pool:getFeeRate()
+                    local newRate = feeRate * self.action.multiplier
+                    newRate = math.max(0.001, math.min(0.95, newRate))
+                    pool:setFeeRate(newRate, false)
+                end
+                if commit then state:commitMany(pools.state) end
+            elseif self.action.type == "weight" then
+                local pool = pools.get(self.action.poolId)
+                if pool and pool.dynAlloc and pool.dynAlloc.type == "weighted_remainder" then
+                    local weight = pool.dynAlloc.weight
+                    local newWeight = weight * self.action.multiplier
+                    newWeight = math.max(0.1, newWeight)
+                    pool.dynAlloc.weight = newWeight
+                end
+                if commit then state:commitMany(pools.state) end
+            end
+        else
+            if commit then state.commit() end
+        end
     end
 end
 
@@ -191,6 +319,25 @@ function Proposition:render()
             text = ("\nStatus: %s"):format(self.expired and "Expired" or "Active"),
         },
         {
+            text = ("\nQuorum: %g%%"):format(QUORUM * 100),
+        },
+        {
+            text = self.action and (
+                self.action.type == "fee" and
+                    ("\nAction: %s.feeRate *= %g"):format(
+                        self.action.poolId,
+                        1 + self.action.multiplier
+                    ) or
+                self.action.type == "weight" and
+                    ("\nAction: %s.weight *= %g"):format(
+                        self.action.poolId,
+                        1 + self.action.multiplier
+                    )
+                or "\nAction: ?"
+            ) or "",
+            formats = { cbb.formats.BOLD },
+        },
+        {
             text = os.date("!\nExpires: %c UTC", self.expiry / 1000) --[[@as string]],
         },
         {
@@ -235,6 +382,17 @@ function Proposition:render()
     }
 end
 
+---@param acct Account
+local function countOwnedActive(acct)
+    local out = 0
+    for _, prop in propositions() do
+        if prop.authorUuid == acct.uuid and not prop.expired then
+            out = out + 1
+        end
+    end
+    return out
+end
+
 threads.register(function()
     while true do
         sleep(math.random(0, 20))
@@ -245,6 +403,9 @@ end)
 return {
     state = state,
     create = create,
+    createPropFee = createPropFee,
+    createPropWeight = createPropWeight,
     get = get,
+    countOwnedActive = countOwnedActive,
     propositions = propositions,
 }
