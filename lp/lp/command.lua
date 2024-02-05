@@ -10,6 +10,7 @@ local log = require "lp.log"
 local cbb = require "cbb"
 local wallet = require "lp.wallet"
 local allocation = require "lp.allocation"
+local secprice = require "lp.secprice"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -364,11 +365,16 @@ local function handleSysInfo(ctx)
             },
             {
                 text = totalKrist
-                    and ("  - Unallocated: %g KST (%g%%)"):format(
+                    and ("  - Unallocated: %g KST (%g%%)\n"):format(
                         unalloc,
                         util.mRound(100 * unalloc / totalKrist)
                     )
                     or ("  - Unallocated: Unavailable"),
+            },
+            {
+                text = ("- Total issued securities: %g"):format(
+                    secprice.getSecTotal()
+                )
             }
         )
 end
