@@ -525,6 +525,8 @@ local function handleBaltopAsset(ctx)
             )
         }
     end
+
+    return ctx.reply(table.unpack(out))
 end
 
 ---@param ctx cbb.Context
