@@ -472,7 +472,8 @@ local function handleBalance(ctx)
     return ctx.reply(table.unpack(out))
 end
 
-local function handleBaltopKst()
+---@param ctx cbb.Context
+local function handleBaltopKst(ctx)
     local arr = {} ---@type Account[]
     for _, acct in sessions.accounts() do
         arr[#arr + 1] = acct
@@ -490,7 +491,7 @@ local function handleBaltopKst()
         }
     end
 
-    return cbb.reply(table.unpack(out))
+    return ctx.reply(table.unpack(out))
 end
 
 ---@param ctx cbb.Context
