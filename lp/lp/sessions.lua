@@ -14,12 +14,13 @@ local assetSums = {}
 ---@type table<string, Account|nil>
 state.accounts = state.accounts or {}
 
+--- Map of lowercase usernames to uuids.
 ---@type table<string, string>
 local uuidIndex = {}
 
 for _, v in pairs(state.accounts) do
     if v.uuid then
-        uuidIndex[v.username] = v.uuid
+        uuidIndex[v.username:lower()] = v.uuid
     end
     accountBalanceSum = accountBalanceSum + v.balance
     for k, a in pairs(v.assets or {}) do
@@ -81,8 +82,8 @@ local function setAcct(uuid, username, commit)
     }
 
     if acct.username then
-        uuidIndex[acct.username] = nil
-        uuidIndex[username] = uuid
+        uuidIndex[acct.username:lower()] = nil
+        uuidIndex[username:lower()] = uuid
     end
 
     acct.username = username
