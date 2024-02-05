@@ -1225,7 +1225,7 @@ local function formatPropositions(out, ctx, props, pageNumber)
             text = prop.expired and "E" or "A",
         }
         out[#out + 1] = {
-            text = "(",
+            text = " (",
         }
         out[#out + 1] = {
             text = ("%3.f%% "):format(yesPct),
