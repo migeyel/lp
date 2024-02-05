@@ -89,7 +89,7 @@ function Proposition:computeTally()
         local acct = sessions.getAcctByUuid(id)
         if acct then
             local shares = acct:getAsset("lp:security~NONE")
-            local sharesFor = math.max(shares, math.floor(0.5 + shares * part))
+            local sharesFor = math.min(shares, math.floor(0.5 + shares * part))
             local sharesAgainst = shares - sharesFor
             yes = yes + sharesFor
             no = no + sharesAgainst
@@ -185,7 +185,7 @@ function Proposition:render()
         },
         {
             text = ("\nNO: "):format(self.description),
-            color = cbb.colors.GREEN,
+            color = cbb.colors.RED,
             formats = { cbb.formats.BOLD },
         },
         {
