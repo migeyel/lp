@@ -443,7 +443,7 @@ threads.register(function()
                 mKst = pool.allocatedKrist * 1000,
             })
         elseif e == allocation.globalReallocEvent then
-            for pool in pools.pools() do
+            for _, pool in pools.pools() do
                 history.addPriceEntry(pool:id(), {
                     timestamp = os.epoch("utc"),
                     items = pool.allocatedItems,
