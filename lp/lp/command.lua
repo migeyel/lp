@@ -1206,17 +1206,81 @@ local function handleQueryProposition(ctx)
 end
 
 ---@param ctx cbb.Context
-local function handleListPropositions(ctx)
-    local out = {{ text = "Propositions:" }} ---@type cbb.FormattedBlock[]
-    for _, prop in propositions.propositions() do
+---@param props Proposition[]
+---@param pageNumber number
+local function formatPropositions(out, ctx, props, pageNumber)
+    local page, pageNumber, numPages = util.paginate(props, 10, pageNumber)
+
+    for _, prop in ipairs(page) do
+        local tally = prop:getTally()
         out[#out + 1] = {
-            text = ("\n%d. "):format(prop.id),
+            text = ("\n%03d. "):format(prop.id),
             formats = { cbb.formats.BOLD },
+        }
+        out[#out + 1] = {
+            text = prop.expired and "E" or "A",
+        }
+        out[#out + 1] = {
+            text = "(",
+        }
+        out[#out + 1] = {
+            text = ("%3.f%% "):format(tally.yes),
+            color = cbb.colors.GREEN,
+        }
+        out[#out + 1] = {
+            text = ("%3.f%% "):format(tally.no),
+            color = cbb.colors.RED,
+        }
+        out[#out + 1] = {
+            text = ("%3.f%%"):format(tally.none),
+            color = cbb.colors.GRAY,
+        }
+        out[#out + 1] = {
+            text = ")",
         }
         out[#out + 1] = {
             text = prop.title,
         }
     end
+
+    out[#out + 1] = {
+        text = ("\nPage %d/%d"):format(pageNumber, numPages)
+    }
+end
+
+---@param ctx cbb.Context
+local function handleListPropositions(ctx)
+    local pageNumber = ctx.args.page or 1 ---@type number
+
+    local out = {{ text = "Propositions:" }} ---@type cbb.FormattedBlock[]
+    local props = {} ---@type Proposition[]
+    for _, prop in propositions.propositions() do
+        props[#props + 1] = prop
+    end
+
+    table.sort(props, function(a, b) return a.created > b.created end)
+
+    formatPropositions(out, ctx, props, pageNumber)
+    return ctx.reply(table.unpack(out))
+end
+
+---@param ctx cbb.Context
+local function handleListUnvotedPropositions(ctx)
+    local pageNumber = ctx.args.page or 1 ---@type number
+
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+
+    local out = {{ text = "Unvoted Propositions:" }} ---@type cbb.FormattedBlock[]
+    local props = {} ---@type Proposition[]
+    for _, prop in propositions.propositions() do
+        if not prop.votes[acct.uuid] then
+            props[#props + 1] = prop
+        end
+    end
+
+    table.sort(props, function(a, b) return a.created > b.created end)
+
+    formatPropositions(out, ctx, props, pageNumber)
     return ctx.reply(table.unpack(out))
 end
 
@@ -1399,6 +1463,10 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("list") "list" {
             help = "Lists propositions",
             execute = handleListPropositions,
+            cbb.literal("unvoted") "unvoted" {
+                help = "Lists unvoted propositions",
+                execute = handleListUnvotedPropositions,
+            },
         },
         cbb.literal("vote") "vote" {
             cbb.integer "id" {

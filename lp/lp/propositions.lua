@@ -16,6 +16,8 @@ local TALLY_GRAPHIC_WIDTH = 150
 ---@field expired boolean
 ---@field sharesFor number
 ---@field sharesAgainst number
+---@field sharesNone number
+---@field created number
 ---@field expiry number
 ---@field description string
 ---@field votes table<string, number> Map of UUIDs to voting portions.
@@ -35,7 +37,9 @@ local function create(author, title, description, expiry, commit)
         expired = false,
         sharesFor = 0,
         sharesAgainst = 0,
+        sharesNone = 0,
         description = description,
+        created = os.epoch("utc"),
         expiry = expiry,
         votes = {},
     }
@@ -75,8 +79,9 @@ function Proposition:delete(commit)
     if commit then state.commit() end
 end
 
----@return { yes: number, no: number }
+---@return { yes: number, no: number, none: number }
 function Proposition:computeTally()
+    local pool = secprice.getSecPool()
     local yes = 0
     local no = 0
     for id, part in pairs(self.votes) do
@@ -89,7 +94,8 @@ function Proposition:computeTally()
             no = no + sharesAgainst
         end
     end
-    return { yes = yes, no = no }
+    local total = sessions.totalAssets(pool:id()) + pool.allocatedItems
+    return { yes = yes, no = no, none = total - yes - no }
 end
 
 ---@param commit boolean
@@ -98,16 +104,19 @@ function Proposition:tryExpire(commit)
         local tally = self:computeTally()
         self.sharesFor = tally.yes
         self.sharesAgainst = tally.no
+        self.sharesNone = tally.none
         self.expired = true
         if commit then state.commit() end
     end
 end
 
+---@return { yes: number, no: number, none: number }
 function Proposition:getTally()
     if self.expired then
         return {
             yes = self.sharesFor,
             no = self.sharesAgainst,
+            none = self.sharesNone,
         }
     else
         return self:computeTally()
@@ -121,8 +130,7 @@ end
 ---@return { yes: string, no: string, none: string }
 function Proposition:tallyGraph()
     local tally = self:getTally()
-    local pool = secprice.getSecPool()
-    local total = sessions.totalAssets(pool:id()) + pool.allocatedItems
+    local total = tally.yes + tally.no + tally.none
     local scaleFactor = TALLY_GRAPHIC_WIDTH / total
     local wYes = math.floor(0.5 + tally.yes * scaleFactor)
     local wNo = math.floor(0.5 + tally.no * scaleFactor)
@@ -164,21 +172,31 @@ function Proposition:render()
             text = ("\nAuthor: %s"):format(author),
         },
         {
+            text = ("\nStatus: %s"):format(self.expired and "Expired" or "Active"),
+        },
+        {
             text = os.date("\nExpires: %Y-%m-%d %H:%M:%S UTC", self.expiry / 1000) --[[@as string]],
         },
         {
-            text = ("\nVotes for: "):format(self.description),
+            text = "\nVotes for: ",
             color = cbb.colors.GREEN,
         },
         {
             text = ("%d"):format(tally.yes),
         },
         {
-            text = ("\nVotes against: "):format(self.description),
+            text = "\nVotes against: ",
             color = cbb.colors.RED,
         },
         {
             text = ("%d"):format(tally.no),
+        },
+        {
+            text = "\nNon-votes: ",
+            color = cbb.colors.GRAY,
+        },
+        {
+            text = ("%d"):format(tally.none),
         },
         {
             text = ("\n[")

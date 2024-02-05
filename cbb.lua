@@ -600,7 +600,7 @@ local function sendHelpTopic(level, ctx, pageSize, page)
     walk(paths, path)
 
     local numPages = math.ceil(#paths / pageSize)
-    page = math.max(0, math.min(numPages, page))
+    page = math.max(1, math.min(numPages, page))
 
     local out = {}
     local offset = (page - 1) * pageSize

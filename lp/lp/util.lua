@@ -35,11 +35,27 @@ for k, v in pairs(colors) do
     end
 end
 
+---@generic T
+---@param arr T[]
+---@param pageSize number
+---@param pageNumber number
+---@return T[] page
+---@return number pageNumber
+---@return number numPages
+local function paginate(arr, pageSize, pageNumber)
+    local numPages = math.ceil(#arr / pageSize)
+    pageNumber = math.max(1, math.min(numPages, pageNumber))
+    local index = (pageNumber - 1) * pageSize + 1
+    local page = table.pack(table.unpack(arr, index, index + pageSize - 1))
+    return page, pageNumber, numPages
+end
+
 return {
     mFloor = mFloor,
     mCeil = mCeil,
     mRound = mRound,
     freq2Num = freq2Num,
     num2Freq = num2Freq,
+    paginate = paginate,
     colorName = colorName,
 }
