@@ -1213,6 +1213,10 @@ local function formatPropositions(out, ctx, props, pageNumber)
 
     for _, prop in ipairs(page) do
         local tally = prop:getTally()
+        local total = tally.yes + tally.no + tally.none
+        local yesPct = math.floor(0.5 + 100 * tally.yes / total)
+        local noPct = math.floor(0.5 + 100 * tally.no / total)
+        local nonePct = 100 - yesPct - noPct
         out[#out + 1] = {
             text = ("\n%03d. "):format(prop.id),
             formats = { cbb.formats.BOLD },
@@ -1224,15 +1228,15 @@ local function formatPropositions(out, ctx, props, pageNumber)
             text = "(",
         }
         out[#out + 1] = {
-            text = ("%3.f%% "):format(tally.yes),
+            text = ("%3.f%% "):format(yesPct),
             color = cbb.colors.GREEN,
         }
         out[#out + 1] = {
-            text = ("%3.f%% "):format(tally.no),
+            text = ("%3.f%% "):format(noPct),
             color = cbb.colors.RED,
         }
         out[#out + 1] = {
-            text = ("%3.f%%"):format(tally.none),
+            text = ("%3.f%%"):format(nonePct),
             color = cbb.colors.GRAY,
         }
         out[#out + 1] = {
