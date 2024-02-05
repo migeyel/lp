@@ -1386,12 +1386,24 @@ local root = cbb.literal("lp") "lp" {
         },
     },
     cbb.literal("proposition") "proposition" {
+        cbb.literal("help") "help" {
+            execute = function(ctx)
+                return cbb.sendHelpTopic(1, ctx, 10, 1)
+            end,
+            cbb.integerExpr "page" {
+                execute = function(ctx)
+                    return cbb.sendHelpTopic(2, ctx, 10, ctx.args.page)
+                end
+            }
+        },
         cbb.literal("list") "list" {
+            help = "Lists propositions",
             execute = handleListPropositions,
         },
         cbb.literal("vote") "vote" {
             cbb.integer "id" {
                 cbb.number "ratio" {
+                    help = "Casts a vote",
                     execute = handleVote,
                 }
             }
