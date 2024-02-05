@@ -13,8 +13,6 @@ local TALLY_GRAPHIC_WIDTH = 150
 ---@field id number
 ---@field authorUuid string
 ---@field title string
----@field yes string
----@field no string
 ---@field expired boolean
 ---@field sharesFor number
 ---@field sharesAgainst number
@@ -26,18 +24,14 @@ local Proposition = {}
 ---@param author Account
 ---@param title string
 ---@param description string
----@param yes string
----@param no string
 ---@param expiry number
 ---@param commit boolean
 ---@return Proposition
-local function create(author, title, description, yes, no, expiry, commit)
+local function create(author, title, description, expiry, commit)
     local prop = { ---@type Proposition
         id = #state.propositions + 1,
         authorUuid = author.uuid,
         title = title,
-        yes = yes,
-        no = no,
         expired = false,
         sharesFor = 0,
         sharesAgainst = 0,
@@ -173,26 +167,18 @@ function Proposition:render()
             text = os.date("\nExpires: %Y-%m-%d %H:%M:%S UTC", self.expiry / 1000) --[[@as string]],
         },
         {
-            text = ("\nYES: "):format(self.description),
+            text = ("\nVotes for: "):format(self.description),
             color = cbb.colors.GREEN,
-            formats = { cbb.formats.BOLD },
         },
         {
-            text = self.yes,
+            text = ("%d"):format(tally.yes),
         },
         {
-            text = ("\nVotes: %d"):format(tally.yes),
-        },
-        {
-            text = ("\nNO: "):format(self.description),
+            text = ("\nVotes against: "):format(self.description),
             color = cbb.colors.RED,
-            formats = { cbb.formats.BOLD },
         },
         {
-            text = self.no,
-        },
-        {
-            text = ("\nVotes: %d"):format(tally.no),
+            text = ("%d"):format(tally.no),
         },
         {
             text = ("\n[")

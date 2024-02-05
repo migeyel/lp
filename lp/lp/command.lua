@@ -1160,7 +1160,7 @@ local function handlePropose(ctx)
 
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     local expiry = os.epoch("utc") + expDays * 1000 * 3600 * 24
-    propositions.create(author, title, description, yes, no, expiry, true)
+    propositions.create(author, title, description, expiry, true)
 
     ctx.reply({ text = "success" })
 end
@@ -1404,12 +1404,8 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("new") "new" {
             cbb.string "title" {
                 cbb.string "description" {
-                    cbb.string "yes" {
-                        cbb.string "no" {
-                            cbb.integerExpr "expDays" {
-                                execute = handlePropose,
-                            },
-                        },
+                    cbb.integerExpr "expDays" {
+                        execute = handlePropose,
                     },
                 },
             },
