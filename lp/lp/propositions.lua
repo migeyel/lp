@@ -7,6 +7,9 @@ local cbb = require "cbb"
 ---@type table<number, Proposition?>
 state.propositions = state.propositions or {}
 
+---@type number
+state.nextId = state.nextId or 1
+
 local TALLY_GRAPHIC_WIDTH = 150
 
 ---@class Proposition
@@ -31,7 +34,7 @@ local Proposition = {}
 ---@return Proposition
 local function create(author, title, description, expiry, commit)
     local prop = { ---@type Proposition
-        id = #state.propositions + 1,
+        id = state.nextId,
         authorUuid = author.uuid,
         title = title,
         expired = false,
@@ -43,7 +46,9 @@ local function create(author, title, description, expiry, commit)
         expiry = expiry,
         votes = {},
     }
+
     state.propositions[prop.id] = prop
+    state.nextId = state.nextId + 1
 
     if commit then state.commit() end
 
