@@ -551,32 +551,20 @@ end
 --- Sends out a help topic on branches starting at a given node.
 --- @param level number The number of parents to walk up before expanding.
 --- @param ctx cbb.Context The context for the current execution.
-local function sendHelpTopic(level, ctx)
+--- @param pageSize number? How many commands to include in a page.
+--- @param page number? Which page to return.
+local function sendHelpTopic(level, ctx, pageSize, page)
     expect.expect(1, level, "number")
     expect.expect(2, ctx, "table")
+    pageSize = expect.expect(3, pageSize, "number", "nil") or 100
+    page = expect.expect(4, page, "number", "nil") or 1
 
-    --- @param out cbb.FormattedBlock[]
+    --- @param out cbb.Node[][]
     --- @param path cbb.Node[]
     local function walk(out, path)
         local last = path[#path]
         if last.kwargs.help then
-            local cmd = {}
-            for i = 1, #path do
-                local node = path[i]
-                if node.type.literal then
-                    cmd[i] = node.name
-                else
-                    cmd[i] = "<" .. node.name .. ":" .. node.type.tstr .. ">"
-                end
-            end
-            out[#out + 1] = {
-                text = "\n\\" .. table.concat(cmd, " "),
-                color = colors.GRAY,
-            }
-            out[#out + 1] = {
-                text = "\n" .. last.kwargs.help,
-                color = colors.WHITE,
-            }
+            out[#out + 1] = { table.unpack(path) }
         end
         for i = 1, #last.children do
             path[#path + 1] = last.children[i]
@@ -585,9 +573,47 @@ local function sendHelpTopic(level, ctx)
         end
     end
 
-    local out = {}
+    ---@param path cbb.Node[]
+    ---@param list cbb.FormattedBlock[]
+    local function appendHelp(path, list)
+        local cmd = {}
+        for i = 1, #path do
+            local node = path[i]
+            if node.type.literal then
+                cmd[i] = node.name
+            else
+                cmd[i] = "<" .. node.name .. ":" .. node.type.tstr .. ">"
+            end
+        end
+        list[#list + 1] = {
+            text = "\n\\" .. table.concat(cmd, " "),
+            color = colors.GRAY,
+        }
+        list[#list + 1] = {
+            text = "\n" .. path[#path].kwargs.help,
+            color = colors.WHITE,
+        }
+    end
+
+    local paths = {} ---@type cbb.Node[][]
     local path = { table.unpack(ctx.path, 1, #ctx.path - level) }
-    walk(out, path)
+    walk(paths, path)
+
+    local numPages = math.ceil(#paths / pageSize)
+    page = math.max(0, math.min(numPages, page))
+
+    local out = {}
+    local offset = (page - 1) * pageSize
+    for i = 1, pageSize do
+        if not paths[i + offset] then break end
+        appendHelp(paths[i + offset], out)
+    end
+
+    if numPages > 1 then
+        out[#out + 1] = {
+            text = ("\nHelp page (%d/%d)"):format(page, numPages)
+        }
+    end
 
     ctx.reply(table.unpack(out))
 end

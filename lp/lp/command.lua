@@ -1149,8 +1149,13 @@ local root = cbb.literal("lp") "lp" {
     cbb.literal("help") "help" {
         help = "Provides this help message",
         execute = function(ctx)
-            return cbb.sendHelpTopic(1, ctx)
+            return cbb.sendHelpTopic(1, ctx, 10, 1)
         end,
+        cbb.integerExpr "page" {
+            execute = function(ctx)
+                return cbb.sendHelpTopic(2, ctx, 10, ctx.args.page)
+            end
+        }
     },
     cbb.literal("whatsnew") "whatsnew" {
         help = "Reports new changes to the shop software",
