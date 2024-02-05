@@ -191,7 +191,7 @@ function Proposition:render()
             text = ("\nStatus: %s"):format(self.expired and "Expired" or "Active"),
         },
         {
-            text = os.date("\nExpires: %Y-%m-%d %H:%M:%S UTC", self.expiry / 1000) --[[@as string]],
+            text = os.date("\nExpires: !%c UTC", self.expiry / 1000) --[[@as string]],
         },
         {
             text = "\nVotes for: ",
