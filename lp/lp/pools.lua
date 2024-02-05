@@ -144,13 +144,14 @@ end
 
 ---@param delta number
 ---@param commit boolean
-function Pool:reallocKst(delta, commit)
+---@param supressEvent boolean?
+function Pool:reallocKst(delta, commit, supressEvent)
     delta = math.max(delta, -self.allocatedKrist)
     poolKristSum = poolKristSum - self.allocatedKrist
     self.allocatedKrist = self.allocatedKrist + delta
     poolKristSum = poolKristSum + self.allocatedKrist
     if commit then state.commit() end
-    priceChangeEvent.queue(self:id())
+    if not supressEvent then priceChangeEvent.queue(self:id()) end
 end
 
 ---@param delta number

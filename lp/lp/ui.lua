@@ -3,9 +3,10 @@ local sessions = require "lp.sessions"
 local basalt = require "basalt"
 local event = require "lp.event"
 local threads = require "lp.threads"
-local util= require "lp.util"
-local graph  = require "lp.graph"
-local history= require "lp.history"
+local util = require "lp.util"
+local graph = require "lp.graph"
+local history = require "lp.history"
+local allocation = require "lp.allocation"
 
 local mon = peripheral.find("monitor")
 
@@ -328,14 +329,20 @@ local function addListing(listingFrame, pool, index)
 
         local newUnroundedPrice = pool:midPriceUnrounded()
 
-        local bg = listingPriceBg(unroundedPrice, newUnroundedPrice, index)
-        listing:setBackground(bg)
-        lsButton:setBackground(bg)
-        midframe:setBackground(bg)
+        local doEffect = listingFrame:isVisible()
+        doEffect = doEffect and unroundedPrice ~= newUnroundedPrice
+        doEffect = doEffect or secondIter
 
         local fg = listingPriceFg(unroundedPrice, newUnroundedPrice)
         priceLabel:setText(("\164%g"):format(pool:midPrice()))
-            :setForeground(fg)
+
+        if doEffect then
+            local bg = listingPriceBg(unroundedPrice, newUnroundedPrice, index)
+            listing:setBackground(bg)
+            lsButton:setBackground(bg)
+            midframe:setBackground(bg)
+            priceLabel:setForeground(fg)
+        end
 
         for i, amt in ipairs(AMOUNTS_TO_QUOTE_PRICES_AT) do
             local buyPrice = util.mCeil(pool:buyPrice(amt) + pool:buyFee(amt))
@@ -343,17 +350,19 @@ local function addListing(listingFrame, pool, index)
             local avgBuyPrice = util.mCeil(buyPrice / amt)
             local avgSellPrice = util.mFloor(sellPrice / amt)
 
-            quoteLabels[i].sell:setText(("\164%g"):format(sellPrice))
-                :setForeground(fg)
-            quoteLabels[i].avgSell:setText(("\164%g/i"):format(avgSellPrice))
-                :setForeground(fg)
-            quoteLabels[i].buy:setText(("\164%g"):format(buyPrice))
-                :setForeground(fg)
-            quoteLabels[i].avgBuy:setText(("\164%g/i"):format(avgBuyPrice))
-                :setForeground(fg)
+            if doEffect then
+                quoteLabels[i].sell:setText(("\164%g"):format(sellPrice))
+                    :setForeground(fg)
+                quoteLabels[i].avgSell:setText(("\164%g/i"):format(avgSellPrice))
+                    :setForeground(fg)
+                quoteLabels[i].buy:setText(("\164%g"):format(buyPrice))
+                    :setForeground(fg)
+                quoteLabels[i].avgBuy:setText(("\164%g/i"):format(avgBuyPrice))
+                    :setForeground(fg)
+            end
         end
 
-        if not secondIter then
+        if doEffect and not secondIter then
             if timer then timer:cancel() end
             timer = listing:addTimer()
                 :setTime(0.5, 1)
@@ -398,6 +407,10 @@ threads.register(function()
             updateBottomBar()
         elseif e == pools.priceChangeEvent and updateListings[id] then
             updateListings[id]()
+        elseif e == allocation.globalReallocEvent then
+            for _, updateListing in pairs(updateListings) do
+                updateListing()
+            end
         end
     end
 end)
@@ -421,13 +434,23 @@ end)
 
 threads.register(function()
     while true do
-        local id = pools.priceChangeEvent.pull()
-        local pool = assert(pools.get(id))
-        history.addPriceEntry(pool:id(), {
-            timestamp = os.epoch("utc"),
-            items = pool.allocatedItems,
-            mKst = pool.allocatedKrist * 1000,
-        })
+        local e, id = event.pull()
+        if e == pools.priceChangeEvent then
+            local pool = assert(pools.get(id))
+            history.addPriceEntry(pool:id(), {
+                timestamp = os.epoch("utc"),
+                items = pool.allocatedItems,
+                mKst = pool.allocatedKrist * 1000,
+            })
+        elseif e == allocation.globalReallocEvent then
+            for pool in pools.pools() do
+                history.addPriceEntry(pool:id(), {
+                    timestamp = os.epoch("utc"),
+                    items = pool.allocatedItems,
+                    mKst = pool.allocatedKrist * 1000,
+                })
+            end
+        end
     end
 end)
 

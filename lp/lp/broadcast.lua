@@ -1,6 +1,8 @@
 local threads = require "lp.threads"
 local pools = require "lp.pools"
 local util = require "lp.util"
+local event = require "lp.event"
+local allocation = require "lp.allocation"
 
 local modem = nil
 for _, v in ipairs({ peripheral.find("modem") }) do
@@ -78,10 +80,12 @@ threads.register(function()
     modem.transmit(9773, os.getComputerID(), collect())
     local lastTransmission = os.clock()
     while true do
-        pools.priceChangeEvent.pull()
-        local remainingCooldown = lastTransmission + 30 - os.clock()
-        if remainingCooldown > 0 then sleep(remainingCooldown) end
-        modem.transmit(9773, os.getComputerID(), collect())
-        lastTransmission = os.clock()
+        local e = event.pull()
+        if e == pools.priceChangeEvent or e == allocation.globalReallocEvent then
+            local remainingCooldown = lastTransmission + 30 - os.clock()
+            if remainingCooldown > 0 then sleep(remainingCooldown) end
+            modem.transmit(9773, os.getComputerID(), collect())
+            lastTransmission = os.clock()
+        end
     end
 end)

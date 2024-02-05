@@ -2,9 +2,12 @@ local wallet = require "lp.wallet"
 local pools = require "lp.pools"
 local util = require "lp.util"
 local threads = require "lp.threads"
+local event = require "lp.event"
 
 local MEAN_ALLOCATION_TIME = 300
 local KRIST_RATE = 1
+
+local globalReallocEvent = event.register()
 
 local function computeTargetDeltas()
     -- Sum of all dynamic allocated pools' Krist
@@ -124,7 +127,7 @@ local function rebalance(kstToMove, commit)
         local pool = pools.get(id)
         if pool then
             local delta = math.max(-negRemaining, negativeDeltas[id])
-            pool:reallocKst(delta, false)
+            pool:reallocKst(delta, false, true)
             wallet.reallocateDyn(-delta, false)
             negRemaining = util.mFloor(negRemaining + delta)
             if pool.dynAlloc.type == "weighted_remainder" then
@@ -142,7 +145,7 @@ local function rebalance(kstToMove, commit)
         local pool = pools.get(id)
         if pool then
             local delta = math.min(posRemaining, positiveDeltas[id])
-            pool:reallocKst(delta, false)
+            pool:reallocKst(delta, false, true)
             wallet.reallocateDyn(-delta, false)
             posRemaining = util.mFloor(posRemaining - delta)
             if pool.dynAlloc.type == "weighted_remainder" then
@@ -153,6 +156,7 @@ local function rebalance(kstToMove, commit)
         end
     end
 
+    globalReallocEvent.queue()
     if commit then wallet.state:commitMany(pools.state) end
 end
 
@@ -165,6 +169,7 @@ threads.register(function()
 end)
 
 return {
+    globalReallocEvent = globalReallocEvent,
     computeTargetDeltas = computeTargetDeltas,
     rebalance = rebalance,
 }
