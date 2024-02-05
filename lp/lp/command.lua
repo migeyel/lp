@@ -1159,7 +1159,7 @@ local function handlePropose(ctx)
 
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     local props = propositions.countOwnedActive(author)
-    if props > PROP_AUTHOR_LIMIT then
+    if props >= PROP_AUTHOR_LIMIT then
         return ctx.replyErr("You have too many active propositions already")
     end
 
@@ -1175,7 +1175,7 @@ end
 ---@param ctx cbb.Context
 local function handleProposeFee(ctx)
     local label = ctx.args.pool ---@type string
-    local multiplier = ctx.args.multipler ---@type number
+    local multiplier = ctx.args.multiplier ---@type number
     local description = ctx.args.description ---@type string
 
     multiplier = math.min(2, math.max(0.5, multiplier))
@@ -1190,7 +1190,7 @@ local function handleProposeFee(ctx)
 
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     local props = propositions.countOwnedActive(author)
-    if props > PROP_AUTHOR_LIMIT then
+    if props >= PROP_AUTHOR_LIMIT then
         return ctx.replyErr("You have too many active propositions already")
     end
 
@@ -1206,7 +1206,7 @@ end
 ---@param ctx cbb.Context
 local function handleProposeWeight(ctx)
     local label = ctx.args.pool ---@type string
-    local multiplier = ctx.args.multipler ---@type number
+    local multiplier = ctx.args.multiplier ---@type number
     local description = ctx.args.description ---@type string
 
     multiplier = math.min(2, math.max(0.5, multiplier))
@@ -1228,11 +1228,11 @@ local function handleProposeWeight(ctx)
 
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     local props = propositions.countOwnedActive(author)
-    if props > PROP_AUTHOR_LIMIT then
+    if props >= PROP_AUTHOR_LIMIT then
         return ctx.replyErr("You have too many active propositions already")
     end
 
-    propositions.createPropFee(author, description, pool, multiplier, true)
+    propositions.createPropWeight(author, description, pool, multiplier, true)
 
     ctx.reply({
         text = ("Success. You have %d active propositions remaining."):format(
@@ -1576,7 +1576,7 @@ local root = cbb.literal("lp") "lp" {
             },
             cbb.literal("fee") "fee" {
                 cbb.string "pool" {
-                    cbb.numberExpr "multipler" {
+                    cbb.numberExpr "multiplier" {
                         cbb.string "description" {
                             help = "Creates a proposition to modify a fee rate",
                             execute = handleProposeFee,
@@ -1584,9 +1584,9 @@ local root = cbb.literal("lp") "lp" {
                     },
                 },
             },
-            cbb.literal("fee") "weight" {
+            cbb.literal("weight") "weight" {
                 cbb.string "pool" {
-                    cbb.numberExpr "multipler" {
+                    cbb.numberExpr "multiplier" {
                         cbb.string "description" {
                             help = "Creates a proposition to modify an allocation weight",
                             execute = handleProposeWeight,
