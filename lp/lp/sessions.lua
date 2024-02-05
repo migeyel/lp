@@ -22,7 +22,7 @@ for _, v in pairs(state.accounts) do
         uuidIndex[v.username] = v.uuid
     end
     accountBalanceSum = accountBalanceSum + v.balance
-    for k, a in pairs(v.assets) do
+    for k, a in pairs(v.assets or {}) do
         assetSums[k] = (assetSums[k] or 0) + a
     end
 end
