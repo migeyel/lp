@@ -1333,7 +1333,6 @@ threads.register(function()
     inventory.get()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
-        user = user:lower()
         cbb.execute(root, BOT_NAME, { "command", user, command, args, etc })
     end
 end)
