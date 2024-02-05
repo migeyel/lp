@@ -48,6 +48,7 @@ local ok, err = xpcall(
         require "lp.broadcast"
         require "lp.secprice"
         require "lp.allocation"
+        require "lp.propositions"
         local threads = require "lp.threads"
         log:info("Thread runtime started")
         parallel.waitForAll(unpack(threads.t))

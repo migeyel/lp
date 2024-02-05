@@ -11,6 +11,7 @@ local cbb = require "cbb"
 local wallet = require "lp.wallet"
 local allocation = require "lp.allocation"
 local secprice = require "lp.secprice"
+local propositions = require "lp.propositions"
 
 local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity sensor")
 local SENSOR_RADIUS_INFINITY_NORM = 5
@@ -1148,6 +1149,77 @@ local function handleWhatsNew(ctx)
     )
 end
 
+---@param ctx cbb.Context
+local function handlePropose(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local title = cbb.args.title ---@type string
+    local description = cbb.args.description ---@type string
+    local yes = cbb.args.yes ---@type string
+    local no = cbb.args.no ---@type string
+    local expDays = cbb.args.expDays ---@type number
+
+    local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local expiry = os.epoch("utc") + expDays * 1000 * 3600 * 24
+    propositions.create(author, title, description, yes, no, expiry, true)
+
+    ctx.reply({ text = "success" })
+end
+
+local function handleDelProp(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local id = cbb.args.id ---@type number
+    local prop = propositions.get(id)
+    if not prop then
+        return ctx.replyErr("This proposition doesn't exist", ctx.argTokens.id)
+    end
+    prop:delete(true)
+    return ctx.reply({ text = "Success!" })
+end
+
+---@param ctx cbb.Context
+local function handleVote(ctx)
+    local id = cbb.args.id ---@type number
+    local ratio = cbb.args.ratio ---@type number
+
+    ratio = math.min(1, math.max(0, ratio))
+
+    local voter = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local prop = propositions.get(id)
+    if not prop then
+        return ctx.replyErr("This proposition doesn't exist", ctx.argTokens.id)
+    end
+
+    prop:cast(voter, ratio, true)
+    return ctx.reply({ text = "Success!" })
+end
+
+---@param ctx cbb.Context
+local function handleQueryProposition(ctx)
+    local id = cbb.args.id ---@type number
+
+    local prop = propositions.get(id)
+    if not prop then
+        return ctx.replyErr("This proposition doesn't exist", ctx.argTokens.id)
+    end
+
+    return ctx.reply(table.unpack(prop:render()))
+end
+
+---@param ctx cbb.Context
+local function handleListPropositions(ctx)
+    local out = {{ text = "Propositions:" }} ---@type cbb.FormattedBlock[]
+    for _, prop in propositions.propositions() do
+        out[#out + 1] = {
+            text = ("\n%d. "):format(prop.id),
+            formats = { cbb.formats.BOLD },
+        }
+        out[#out + 1] = {
+            text = prop.title,
+        }
+    end
+    return ctx.reply(table.unpack(out))
+end
+
 local recursiveWrongPool = {
     
 }
@@ -1311,6 +1383,39 @@ local root = cbb.literal("lp") "lp" {
             cbb.numberExpr "amount" {
                 execute = handleMint,
             },
+        },
+    },
+    cbb.literal("proposition") "proposition" {
+        cbb.literal("list") "list" {
+            execute = handleListPropositions,
+        },
+        cbb.literal("vote") "vote" {
+            cbb.integer "id" {
+                cbb.number "ratio" {
+                    execute = handleVote,
+                }
+            }
+        },
+        cbb.literal("delete") "delete" {
+            cbb.integer "id" {
+                execute = handleDelProp,
+            },
+        },
+        cbb.literal("new") "new" {
+            cbb.string "title" {
+                cbb.string "description" {
+                    cbb.string "yes" {
+                        cbb.string "no" {
+                            cbb.integerExpr "expDays" {
+                                execute = handlePropose,
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        cbb.integer "id" {
+            execute = handleQueryProposition,
         },
     },
 }
