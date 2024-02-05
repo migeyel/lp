@@ -29,7 +29,7 @@ local Proposition = {}
 local function getExpiration()
     local now = os.epoch("utc")
     local date = os.date("!*t", now / 1000)
-    local daySeconds = ((date.hour * 24) + date.min) * 60 + date.sec
+    local daySeconds = date.hour * 3600 + date.min * 60 + date.sec
     local secsToMidnight = 24 * 3600 - daySeconds
     local daysToSaturday = (6 - (date.wday - 1)) % 7
     if daysToSaturday < 3 then daysToSaturday = daysToSaturday + 7 end
