@@ -1152,11 +1152,11 @@ end
 ---@param ctx cbb.Context
 local function handlePropose(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
-    local title = cbb.args.title ---@type string
-    local description = cbb.args.description ---@type string
-    local yes = cbb.args.yes ---@type string
-    local no = cbb.args.no ---@type string
-    local expDays = cbb.args.expDays ---@type number
+    local title = ctx.args.title ---@type string
+    local description = ctx.args.description ---@type string
+    local yes = ctx.args.yes ---@type string
+    local no = ctx.args.no ---@type string
+    local expDays = ctx.args.expDays ---@type number
 
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     local expiry = os.epoch("utc") + expDays * 1000 * 3600 * 24
@@ -1167,7 +1167,7 @@ end
 
 local function handleDelProp(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
-    local id = cbb.args.id ---@type number
+    local id = ctx.args.id ---@type number
     local prop = propositions.get(id)
     if not prop then
         return ctx.replyErr("This proposition doesn't exist", ctx.argTokens.id)
@@ -1178,8 +1178,8 @@ end
 
 ---@param ctx cbb.Context
 local function handleVote(ctx)
-    local id = cbb.args.id ---@type number
-    local ratio = cbb.args.ratio ---@type number
+    local id = ctx.args.id ---@type number
+    local ratio = ctx.args.ratio ---@type number
 
     ratio = math.min(1, math.max(0, ratio))
 
@@ -1195,7 +1195,7 @@ end
 
 ---@param ctx cbb.Context
 local function handleQueryProposition(ctx)
-    local id = cbb.args.id ---@type number
+    local id = ctx.args.id ---@type number
 
     local prop = propositions.get(id)
     if not prop then
