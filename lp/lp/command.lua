@@ -485,7 +485,8 @@ local function handleBaltopKst(ctx)
     for i = 1, 10 do
         if arr[i].balance == 0 then break end
         out[#out + 1] = {
-            text = ("\n- %s: %g KST"):format(
+            text = ("\n%d. %s: %g KST"):format(
+                i,
                 arr[i].username,
                 arr[i].balance
             )
@@ -521,7 +522,8 @@ local function handleBaltopAsset(ctx)
     for i = 1, 10 do
         if arr[i]:getAsset(id) == 0 then break end
         out[#out + 1] = {
-            text = ("\n- %s: %g"):format(
+            text = ("\n%d. %s: %g"):format(
+                i,
                 arr[i].username,
                 arr[i]:getAsset(id)
             )
