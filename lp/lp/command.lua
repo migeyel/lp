@@ -1154,13 +1154,9 @@ local function handlePropose(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local title = ctx.args.title ---@type string
     local description = ctx.args.description ---@type string
-    local yes = ctx.args.yes ---@type string
-    local no = ctx.args.no ---@type string
-    local expDays = ctx.args.expDays ---@type number
 
     local author = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
-    local expiry = os.epoch("utc") + expDays * 1000 * 3600 * 24
-    propositions.create(author, title, description, expiry, true)
+    propositions.create(author, title, description, true)
 
     ctx.reply({ text = "success" })
 end
@@ -1240,7 +1236,7 @@ local function formatPropositions(out, ctx, props, pageNumber)
             color = cbb.colors.GRAY,
         }
         out[#out + 1] = {
-            text = ")",
+            text = ") ",
         }
         out[#out + 1] = {
             text = prop.title,
@@ -1488,9 +1484,7 @@ local root = cbb.literal("lp") "lp" {
         cbb.literal("new") "new" {
             cbb.string "title" {
                 cbb.string "description" {
-                    cbb.integerExpr "expDays" {
-                        execute = handlePropose,
-                    },
+                    execute = handlePropose,
                 },
             },
         },

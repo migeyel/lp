@@ -26,13 +26,24 @@ local TALLY_GRAPHIC_WIDTH = 150
 ---@field votes table<string, number> Map of UUIDs to voting portions.
 local Proposition = {}
 
+local function getExpiration()
+    local now = os.epoch("utc")
+    local date = os.date("!*t", now / 1000)
+    local daySeconds = ((date.hour * 24) + date.min) * 60 + date.sec
+    local secsToMidnight = 24 * 3600 - daySeconds
+    local daysToSaturday = (6 - (date.wday - 1)) % 7
+    if daysToSaturday < 3 then daysToSaturday = daysToSaturday + 7 end
+    local secondsToSaturday = daysToSaturday * 24 * 3600
+    local secsToSundayMidnight = secondsToSaturday + secsToMidnight
+    return now + 1000 * secsToSundayMidnight
+end
+
 ---@param author Account
 ---@param title string
 ---@param description string
----@param expiry number
 ---@param commit boolean
 ---@return Proposition
-local function create(author, title, description, expiry, commit)
+local function create(author, title, description, commit)
     local prop = { ---@type Proposition
         id = state.nextId,
         authorUuid = author.uuid,
@@ -43,7 +54,7 @@ local function create(author, title, description, expiry, commit)
         sharesNone = 0,
         description = description,
         created = os.epoch("utc"),
-        expiry = expiry,
+        expiry = getExpiration(),
         votes = {},
     }
 
