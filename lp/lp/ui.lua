@@ -350,15 +350,16 @@ local function addListing(listingFrame, pool, index)
             local avgBuyPrice = util.mCeil(buyPrice / amt)
             local avgSellPrice = util.mFloor(sellPrice / amt)
 
+            quoteLabels[i].sell:setText(("\164%g"):format(sellPrice))
+            quoteLabels[i].avgSell:setText(("\164%g/i"):format(avgSellPrice))
+            quoteLabels[i].buy:setText(("\164%g"):format(buyPrice))
+            quoteLabels[i].avgBuy:setText(("\164%g/i"):format(avgBuyPrice))
+
             if doEffect then
-                quoteLabels[i].sell:setText(("\164%g"):format(sellPrice))
-                    :setForeground(fg)
-                quoteLabels[i].avgSell:setText(("\164%g/i"):format(avgSellPrice))
-                    :setForeground(fg)
-                quoteLabels[i].buy:setText(("\164%g"):format(buyPrice))
-                    :setForeground(fg)
-                quoteLabels[i].avgBuy:setText(("\164%g/i"):format(avgBuyPrice))
-                    :setForeground(fg)
+                quoteLabels[i].sell:setForeground(fg)
+                quoteLabels[i].avgSell:setForeground(fg)
+                quoteLabels[i].buy:setForeground(fg)
+                quoteLabels[i].avgBuy:setForeground(fg)
             end
         end
 
