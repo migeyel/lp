@@ -1596,6 +1596,7 @@ local root = cbb.literal("lp") "lp" {
             },
         },
         cbb.integer "id" {
+            help = "Exhibits details on a proposition",
             execute = handleQueryProposition,
         },
     },
