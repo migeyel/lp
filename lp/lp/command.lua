@@ -1550,7 +1550,13 @@ local root = cbb.literal("lp") "lp" {
             cbb.literal("unvoted") "unvoted" {
                 help = "Lists unvoted propositions",
                 execute = handleListUnvotedPropositions,
+                cbb.integer "page" {
+                    execute = handleListUnvotedPropositions,
+                }
             },
+            cbb.integer "page" {
+                execute = handleListPropositions,
+            }
         },
         cbb.literal("vote") "vote" {
             cbb.integer "id" {
