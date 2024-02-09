@@ -503,10 +503,11 @@ local function handleBaltopKst(ctx)
     for i = 1, 10 do
         if arr[i].balance == 0 then break end
         out[#out + 1] = {
-            text = ("\n%d. %s: %g KST"):format(
+            text = ("\n%d. %s: %g KST (%g%%)"):format(
                 i,
                 arr[i].username,
-                arr[i].balance
+                arr[i].balance,
+                util.mRound(100 * arr[i].balance / sessions.totalBalances())
             )
         }
     end
@@ -540,10 +541,11 @@ local function handleBaltopAsset(ctx)
     for i = 1, 10 do
         if arr[i]:getAsset(id) == 0 then break end
         out[#out + 1] = {
-            text = ("\n%d. %s: %g"):format(
+            text = ("\n%d. %s: %g (%g%%)"):format(
                 i,
                 arr[i].username,
-                arr[i]:getAsset(id)
+                arr[i]:getAsset(id),
+                util.mRound(100 * arr[i]:getAsset(id) / sessions.totalAssets(id))
             )
         }
     end
