@@ -117,12 +117,14 @@ end
 -- receiver uuid: string
 -- sender: string (username or krist address)
 -- amount: number
+-- message: string?
 local TransferReceivedEvent = event.register("transfer_received")
 
 ---@param ctx cbb.Context
 local function handlePay(ctx)
     local receiver = sessions.getAcctByUsername(ctx.args.receiver:lower())
     local amount = util.mFloor(ctx.args.amount)
+    local message = ctx.args.message ---@type string?
 
     if not receiver then
         return ctx.replyErr(
@@ -150,7 +152,8 @@ local function handlePay(ctx)
     TransferReceivedEvent.queue(
         receiver.uuid,
         ctx.data.user.displayName,
-        -trueAmount
+        -trueAmount,
+        message
     )
 
     return ctx.reply(
@@ -1465,6 +1468,10 @@ local root = cbb.literal("lp") "lp" {
             cbb.numberExpr "amount" {
                 help = "Transfers Krist in your LP balance to someone else",
                 execute = handlePay,
+                cbb.string "message" {
+                    help = "Transfers Krist in your LP balance to someone else",
+                    execute = handlePay,
+                },
             },
         },
     },
@@ -1720,20 +1727,45 @@ end)
 threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
-        local uuid, sender, amt = TransferReceivedEvent.pull()
-        cbb.tell(uuid, BOT_NAME,
-            {
-                text = assert(sender),
-                color = cbb.colors.AQUA,
-            },
-            {
-                text = " sent you ",
-                color = cbb.colors.GREEN,
-            },
-            {
-                text = ("%g KST"):format(amt),
-                color = cbb.colors.YELLOW,
-            }
-        )
+        local uuid, sender, amt, message = TransferReceivedEvent.pull()
+        if message then
+            cbb.tell(uuid, BOT_NAME,
+                {
+                    text = assert(sender),
+                    color = cbb.colors.AQUA,
+                },
+                {
+                    text = " sent you ",
+                    color = cbb.colors.GREEN,
+                },
+                {
+                    text = ("%g KST"):format(amt),
+                    color = cbb.colors.YELLOW,
+                },
+                {
+                    text = "\nMessage: ",
+                    color = cbb.colors.DARK_GREEN,
+                },
+                {
+                    text = message,
+                    color = cbb.colors.GREEN,
+                }
+            )
+        else
+            cbb.tell(uuid, BOT_NAME,
+                {
+                    text = assert(sender),
+                    color = cbb.colors.AQUA,
+                },
+                {
+                    text = " sent you ",
+                    color = cbb.colors.GREEN,
+                },
+                {
+                    text = ("%g KST"):format(amt),
+                    color = cbb.colors.YELLOW,
+                }
+            )
+        end
     end
 end)
