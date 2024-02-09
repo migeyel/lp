@@ -47,6 +47,10 @@ local function getDynFund()
     return state.dynFund
 end
 
+local function getFeeFund()
+    return state.feeFund
+end
+
 local isKristUp = false
 
 local function getIsKristUp()
@@ -291,6 +295,13 @@ local function reallocateDyn(delta, commit)
     return state.dynFund
 end
 
+local function reallocateFee(delta, commit)
+    delta = math.max(delta, -state.feeFund)
+    state.feeFund = util.mRound(state.feeFund + delta)
+    if commit then state.commit() end
+    return state.feeFund
+end
+
 local function reallocateRounding(delta, commit)
     delta = math.max(delta, -state.roundingFund)
     state.roundingFund = util.mFloor(state.roundingFund + delta)
@@ -514,7 +525,9 @@ return {
     reallocateRounding = reallocateRounding,
     reallocateDyn = reallocateDyn,
     getRoundingFund = getRoundingFund,
+    reallocateFee = reallocateFee,
     getDynFund = getDynFund,
+    getFeeFund = getFeeFund,
     setPendingTx = setPendingTx,
     sendPendingTx = sendPendingTx,
     fetchBalance = fetchBalance,

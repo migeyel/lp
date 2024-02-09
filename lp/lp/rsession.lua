@@ -248,7 +248,7 @@ local function handleBuy(uss, id, rch, uuid, buy)
     account:transfer(-buyPriceWithFee, false)
     pool:reallocItems(-pushTransfer.amount, false)
     pool:reallocKst(buyPriceNoFee, false)
-    wallet.reallocateDyn(buyFee / 2, false)
+    wallet.reallocateFee(buyFee / 2, false)
 
     local orderExecution = {
         amount = pushTransfer.amount,
@@ -451,7 +451,7 @@ local function handleSell(uss, id, rch, uuid, sell)
     account:transfer(sellPriceWithFee, false)
     pool:reallocItems(pullTransfer.amount, false)
     pool:reallocKst(-sellPriceNoFee, false)
-    wallet.reallocateDyn(sellFee / 2, false)
+    wallet.reallocateFee(sellFee / 2, false)
 
     local response = proto.Response.serialize {
         id = id,

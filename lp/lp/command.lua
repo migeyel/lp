@@ -311,10 +311,12 @@ local function handleSysInfo(ctx)
     local allocPools = pools.totalKrist()
     local allocAccts = sessions.totalBalances()
     local allocDyn = wallet.getDynFund()
+    local allocFee = wallet.getFeeFund()
     local unalloc = totalKrist and totalKrist
         - allocPools
         - allocAccts
         - allocDyn
+        - allocFee
     local secPool = secprice.getSecPool()
     local secTotal = secPool.allocatedItems + sessions.totalAssets(secPool:id())
     return ctx.reply(
@@ -369,6 +371,16 @@ local function handleSysInfo(ctx)
                     )
                     or ("  - Unused dyn allocation fund: %g KST"):format(
                         allocDyn
+                    )
+            },
+            {
+                text = totalKrist
+                    and ("  - Fee fund: %g KST (%g%%)\n"):format(
+                        allocFee,
+                        util.mRound(100 * allocFee / totalKrist)
+                    )
+                    or ("  - Fee fund: %g KST"):format(
+                        allocFee
                     )
             },
             {
@@ -694,6 +706,16 @@ local function handleDynRealloc(ctx)
     local amount = ctx.args.amount ---@type number
     ctx.reply({
         text = "New balance: " .. wallet.reallocateDyn(amount, true),
+        color = cbb.colors.WHITE,
+    })
+end
+
+---@param ctx cbb.Context
+local function handleFeeRealloc(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local amount = ctx.args.amount ---@type number
+    ctx.reply({
+        text = "New balance: " .. wallet.reallocateFee(amount, true),
         color = cbb.colors.WHITE,
     })
 end
@@ -1487,7 +1509,12 @@ local root = cbb.literal("lp") "lp" {
             cbb.numberExpr "amount" {
                 execute = handleDynRealloc,
             }
-        }
+        },
+        cbb.literal("fee") "fee" {
+            cbb.numberExpr "amount" {
+                execute = handleFeeRealloc,
+            },
+        },
     },
     cbb.literal("feerate") "feerate" {
         cbb.string "item" {
