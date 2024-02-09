@@ -5,6 +5,8 @@ local util = require "lp.util"
 local log = require "lp.log"
 local event = require "lp.event"
 local threads = require "lp.threads"
+local secprice = require "lp.secprice"
+local pools = require "lp.pools"
 local mutex = require "lp.mutex"
 local jua = require "jua"
 local w = require "w"
@@ -302,6 +304,15 @@ local function reallocateFee(delta, commit)
     return state.feeFund
 end
 
+local function addFeeIncome(fees, commit)
+    local take = math.max(0, fees) / 2
+    local pool = secprice.getSecPool()
+    local rate = pool.dynAlloc.rate / 2
+    pool:reallocKst(util.mFloor(rate * take), false)
+    reallocateFee(util.mFloor((1 - rate) * take), false)
+    if commit then state:commitMany(pools.state) end
+end
+
 local function reallocateRounding(delta, commit)
     delta = math.max(delta, -state.roundingFund)
     state.roundingFund = util.mFloor(state.roundingFund + delta)
@@ -526,6 +537,7 @@ return {
     reallocateDyn = reallocateDyn,
     getRoundingFund = getRoundingFund,
     reallocateFee = reallocateFee,
+    addFeeIncome = addFeeIncome,
     getDynFund = getDynFund,
     getFeeFund = getFeeFund,
     setPendingTx = setPendingTx,

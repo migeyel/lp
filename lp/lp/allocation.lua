@@ -14,7 +14,13 @@ local function computeTargetDeltas()
     local dynSum = wallet.getDynFund()
     for _, pool in pools.pools() do
         if pool.dynAlloc then
-            dynSum = dynSum + pool.allocatedKrist
+            if pool.dynAlloc.type == "fixed_rate" then
+                local feeRate = pool.dynAlloc.rate / 2
+                local feeShare = feeRate / (1 - feeRate) * wallet.getFeeFund()
+                dynSum = dynSum + pool.allocatedKrist - feeShare
+            else
+                dynSum = dynSum + pool.allocatedKrist
+            end
         end
     end
 
@@ -28,7 +34,10 @@ local function computeTargetDeltas()
         if alloc then
             if alloc.type == "fixed_rate" then
                 ---@cast alloc FixedRateScheme
-                local target = math.max(0, util.mFloor(dynSum * alloc.rate))
+                local capitalShare = dynSum * alloc.rate
+                local feeRate = alloc.rate / 2
+                local feeShare = feeRate / (1 - feeRate) * wallet.getFeeFund()
+                local target = math.max(0, util.mFloor(capitalShare + feeShare))
                 fixedRateSum = util.mCeil(fixedRateSum + target)
                 local delta = util.mFloor(target - pool.allocatedKrist)
                 if delta > 0 then

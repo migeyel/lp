@@ -387,13 +387,13 @@ function Session:close()
         if fee > 0 then
             local pool = pools.get(id)
             if pool then pools.priceChangeEvent.queue(pool:id()) end
-            wallet.reallocateFee(fee / 2, false)
+            wallet.addFeeIncome(fee, false)
         end
     end
     for id, fee in pairs(self.sellFees) do
         local pool = pools.get(id)
         if pool then pools.priceChangeEvent.queue(pool:id()) end
-        wallet.reallocateFee(fee / 2, false)
+        wallet.addFeeIncome(fee, false)
     end
 
     local acct = self:account()
