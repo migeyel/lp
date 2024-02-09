@@ -5,7 +5,6 @@ local util = require "lp.util"
 local log = require "lp.log"
 local event = require "lp.event"
 local threads = require "lp.threads"
-local secprice = require "lp.secprice"
 local pools = require "lp.pools"
 local mutex = require "lp.mutex"
 local jua = require "jua"
@@ -305,6 +304,7 @@ local function reallocateFee(delta, commit)
 end
 
 local function addFeeIncome(fees, commit)
+    local secprice = require "lp.secprice"
     local take = math.max(0, fees) / 2
     local pool = secprice.getSecPool()
     local rate = pool.dynAlloc.rate / 2
