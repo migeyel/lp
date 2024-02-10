@@ -18,7 +18,7 @@ local SENSOR_RADIUS_INFINITY_NORM = 5
 local PROP_AUTHOR_LIMIT = 3
 
 local function mClip(value)
-    value = value - value % 0.001
+    value = util.mRound(value)
     if value ~= value then return 0 end
     return math.min(2 ^ 32 * 0.001, math.max(-2 ^ 32 * 0.001, value))
 end

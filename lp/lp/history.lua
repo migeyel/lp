@@ -76,11 +76,23 @@ function HistoryState.decode(encoded)
         prices[poolId] = poolPrices
 
         local lastPrice = poolPrices[#poolPrices] or {}
-        poolPrices[#poolPrices + 1] = {
-            timestamp = lastTimestamp,
-            items = (lastPrice.items or 0) + tx.deltaItems,
-            mKst = (lastPrice.mKst or 0) + tx.deltaMKst,
-        }
+        local newItems = (lastPrice.items or 0) + tx.deltaItems
+        local newMKst = (lastPrice.mKst or 0) + tx.deltaMKst
+        local newPrice = newMKst / newItems
+
+        if newPrice > 0 and newPrice < 2 ^ 40 then
+            poolPrices[#poolPrices + 1] = {
+                timestamp = lastTimestamp,
+                items = (lastPrice.items or 0) + tx.deltaItems,
+                mKst = (lastPrice.mKst or 0) + tx.deltaMKst,
+            }
+        else
+            poolPrices[#poolPrices + 1] = {
+                timestamp = lastTimestamp,
+                items = lastPrice.items,
+                mKst = lastPrice.mKst,
+            }
+        end
     end
 
     return setmetatable({
