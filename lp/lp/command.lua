@@ -126,6 +126,52 @@ end
 -- message: string?
 local TransferReceivedEvent = event.register("transfer_received")
 
+--- @param uuid string
+--- @param sender string
+--- @param amt number
+--- @param message string?
+local function tellTransferReceived(uuid, sender, amt, message)
+    if message then
+        cbb.tell(uuid, BOT_NAME,
+            {
+                text = assert(sender),
+                color = cbb.colors.AQUA,
+            },
+            {
+                text = " sent you ",
+                color = cbb.colors.GREEN,
+            },
+            {
+                text = ("%g KST"):format(amt),
+                color = cbb.colors.YELLOW,
+            },
+            {
+                text = "\nMessage: ",
+                color = cbb.colors.DARK_GREEN,
+            },
+            {
+                text = message,
+                color = cbb.colors.GREEN,
+            }
+        )
+    else
+        cbb.tell(uuid, BOT_NAME,
+            {
+                text = assert(sender),
+                color = cbb.colors.AQUA,
+            },
+            {
+                text = " sent you ",
+                color = cbb.colors.GREEN,
+            },
+            {
+                text = ("%g KST"):format(amt),
+                color = cbb.colors.YELLOW,
+            }
+        )
+    end
+end
+
 ---@param ctx cbb.Context
 local function handlePay(ctx)
     local receiver = sessions.getAcctByUsername(ctx.args.receiver:lower())
@@ -155,7 +201,7 @@ local function handlePay(ctx)
     local trueAmount = sender:transfer(-amount, false)
     receiver:transfer(-trueAmount, true)
 
-    TransferReceivedEvent.queue(
+    tellTransferReceived(
         receiver.uuid,
         ctx.data.user.displayName,
         -trueAmount,
@@ -1412,13 +1458,12 @@ local function handleDistribute(ctx)
     end
     for uuid, amt in pairs(dists) do
         if players[uuid] then
-            TransferReceivedEvent.queue(
+            tellTransferReceived(
                 uuid,
                 "lp.kst",
                 amt,
                 "LP security dividend income distribution"
             )
-            sleep(0)
         end
     end
 end
@@ -1757,44 +1802,6 @@ threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
         local uuid, sender, amt, message = TransferReceivedEvent.pull()
-        if message then
-            cbb.tell(uuid, BOT_NAME,
-                {
-                    text = assert(sender),
-                    color = cbb.colors.AQUA,
-                },
-                {
-                    text = " sent you ",
-                    color = cbb.colors.GREEN,
-                },
-                {
-                    text = ("%g KST"):format(amt),
-                    color = cbb.colors.YELLOW,
-                },
-                {
-                    text = "\nMessage: ",
-                    color = cbb.colors.DARK_GREEN,
-                },
-                {
-                    text = message,
-                    color = cbb.colors.GREEN,
-                }
-            )
-        else
-            cbb.tell(uuid, BOT_NAME,
-                {
-                    text = assert(sender),
-                    color = cbb.colors.AQUA,
-                },
-                {
-                    text = " sent you ",
-                    color = cbb.colors.GREEN,
-                },
-                {
-                    text = ("%g KST"):format(amt),
-                    color = cbb.colors.YELLOW,
-                }
-            )
-        end
+        tellTransferReceived(uuid, sender, amt, message)
     end
 end)
