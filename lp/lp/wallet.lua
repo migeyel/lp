@@ -297,20 +297,18 @@ local function reallocateDyn(delta, commit)
 end
 
 local function reallocateFee(delta, commit)
-    delta = math.max(delta, -state.feeFund)
-    state.feeFund = util.mRound(state.feeFund + delta)
-    if commit then state.commit() end
-    return state.feeFund
-end
-
-local function addFeeIncome(fees, commit)
     local secprice = require "lp.secprice"
-    local take = math.max(0, fees) / 2
     local pool = secprice.getSecPool()
     local rate = pool.dynAlloc.rate / 2
-    pool:reallocKst(util.mFloor(rate * take), false)
-    reallocateFee(util.mFloor((1 - rate) * take), false)
+    local fundDelta = math.max((1 - rate) * delta, -state.feeFund)
+    local poolDelta = math.max(rate * delta, -pool.allocatedKrist + 1)
+    local oldFund = state.feeFund
+    local oldPool = pool.allocatedKrist
+    state.feeFund = util.mRound(state.feeFund + fundDelta)
+    pool:reallocKst(poolDelta, false)
+    local trueDelta = state.feeFund + pool.allocatedKrist - oldFund - oldPool
     if commit then state:commitMany(pools.state) end
+    return state.feeFund, trueDelta
 end
 
 local function reallocateRounding(delta, commit)
@@ -537,7 +535,6 @@ return {
     reallocateDyn = reallocateDyn,
     getRoundingFund = getRoundingFund,
     reallocateFee = reallocateFee,
-    addFeeIncome = addFeeIncome,
     getDynFund = getDynFund,
     getFeeFund = getFeeFund,
     setPendingTx = setPendingTx,

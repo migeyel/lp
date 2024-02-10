@@ -387,13 +387,13 @@ function Session:close()
         if fee > 0 then
             local pool = pools.get(id)
             if pool then pools.priceChangeEvent.queue(pool:id()) end
-            wallet.addFeeIncome(fee, false)
+            wallet.reallocateFee(fee / 2, false)
         end
     end
     for id, fee in pairs(self.sellFees) do
         local pool = pools.get(id)
         if pool then pools.priceChangeEvent.queue(pool:id()) end
-        wallet.addFeeIncome(fee, false)
+        wallet.reallocateFee(fee / 2, false)
     end
 
     local acct = self:account()
@@ -418,6 +418,26 @@ local function totalAssets(id)
     return assetSums[id] or 0
 end
 
+--- @param amount number
+--- @param commit boolean
+--- @return table<string, number>
+local function distribute(amount, commit)
+    amount = math.max(0, amount)
+    local _, trueFundDelta = wallet.reallocateFee(-amount, false)
+    local toDistribute = -trueFundDelta
+    local total = totalAssets("lp:security~NONE")
+    local dists = {}
+    for _, acct in accounts() do
+        local secs = acct:getAsset("lp:security~NONE")
+        local ratio = secs / total
+        local dist = util.mFloor(ratio * toDistribute)
+        acct:transfer(dist, false)
+        dists[acct.uuid] = dist
+    end
+    if commit then state:commitMany(wallet.state, pools.state) end
+    return dists
+end
+
 return {
     ECHEST_ALLOCATION_PRICE = ECHEST_ALLOCATION_PRICE,
     startEvent = startEvent,
@@ -434,4 +454,5 @@ return {
     totalBalances = totalBalances,
     totalAssets = totalAssets,
     state = state,
+    distribute = distribute,
 }
