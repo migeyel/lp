@@ -301,7 +301,7 @@ local function reallocateFee(delta, commit)
     local pool = secprice.getSecPool()
     local rate = pool.dynAlloc.rate / 2
     local fundDelta = math.max((1 - rate) * delta, -state.feeFund)
-    local poolDelta = math.max(rate * delta, -pool.allocatedKrist + 1)
+    local poolDelta = math.max(rate / (1 - rate) * fundDelta, -pool.allocatedKrist + 1)
     local oldFund = state.feeFund
     local oldPool = pool.allocatedKrist
     state.feeFund = util.mRound(state.feeFund + fundDelta)
