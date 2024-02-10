@@ -17,6 +17,12 @@ local sensor = assert(peripheral.find("plethora:sensor"), "coudln't find entity 
 local SENSOR_RADIUS_INFINITY_NORM = 5
 local PROP_AUTHOR_LIMIT = 3
 
+local function mClip(value)
+    value = value - value % 0.001
+    if value ~= value then return 0 end
+    return math.min(2 ^ 32 * 0.001, math.max(-2 ^ 32 * 0.001, value))
+end
+
 local chatbox = chatbox
 if not chatbox then
     -- dummy
@@ -123,7 +129,7 @@ local TransferReceivedEvent = event.register("transfer_received")
 ---@param ctx cbb.Context
 local function handlePay(ctx)
     local receiver = sessions.getAcctByUsername(ctx.args.receiver:lower())
-    local amount = util.mFloor(ctx.args.amount)
+    local amount = util.mFloor(mClip(ctx.args.amount))
     local message = ctx.args.message ---@type string?
 
     if not receiver then
@@ -183,7 +189,7 @@ end
 ---@param ctx cbb.Context
 local function handleBuy(ctx)
     local label = ctx.args.item ---@type string
-    local amount = ctx.args.amount ---@type integer
+    local amount = mClip(ctx.args.amount) ---@type integer
 
     local session = sessions.get()
     if not session then
@@ -260,7 +266,7 @@ end
 ---@param ctx cbb.Context
 local function handleSell(ctx)
     local label = ctx.args.item ---@type string
-    local amount = ctx.args.amount ---@type integer
+    local amount = mClip(ctx.args.amount) ---@type integer
 
     local session = sessions.get()
     if not session then
@@ -558,7 +564,7 @@ end
 
 ---@param ctx cbb.Context
 local function handleWithdraw(ctx)
-    local amount = ctx.args.amount
+    local amount = mClip(ctx.args.amount)
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     if acct.balance < amount then
         return ctx.replyErr(
@@ -696,7 +702,7 @@ end
 ---@param ctx cbb.Context
 local function handleRawdelta(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
-    local amount = ctx.args.amount ---@type number
+    local amount = mClip(ctx.args.amount) ---@type number
 
     local account = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
     ctx.reply({
@@ -708,7 +714,7 @@ end
 ---@param ctx cbb.Context
 local function handleDynRealloc(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
-    local amount = ctx.args.amount ---@type number
+    local amount = mClip(ctx.args.amount) ---@type number
     ctx.reply({
         text = "New balance: " .. wallet.reallocateDyn(amount, true),
         color = cbb.colors.WHITE,
@@ -728,7 +734,7 @@ end
 local function handleFeeRate(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
-    local rate = ctx.args.rate ---@type number
+    local rate = mClip(ctx.args.rate) ---@type number
 
     local pool = pools.getByTag(label)
     if pool then
@@ -750,7 +756,7 @@ end
 
 ---@param ctx cbb.Context
 local function handleArb(ctx)
-    local otherPrice = ctx.args.price ---@type number
+    local otherPrice = mClip(ctx.args.price) ---@type number
     local label = ctx.args.item ---@type string
 
     if otherPrice == 0 then
@@ -829,7 +835,7 @@ end
 
 ---@param ctx cbb.Context
 local function handlePrice(ctx)
-    local amount = ctx.args.amount ---@type integer
+    local amount = mClip(ctx.args.amount) ---@type integer
     local label = ctx.args.item ---@type string
 
     local pool = pools.getByTag(label)
@@ -879,7 +885,7 @@ end
 local function handleAlloc(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
-    local amount = ctx.args.amount ---@type number
+    local amount = mClip(ctx.args.amount) ---@type number
 
     amount = util.mFloor(amount)
     local pool = pools.getByTag(label)
@@ -902,7 +908,7 @@ end
 local function handleSetAllocFixedRate(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
-    local rate = ctx.args.value ---@type number
+    local rate = mClip(ctx.args.value) ---@type number
 
     if rate <= 0 or rate >= 1 then
         return ctx.replyErr(
@@ -932,7 +938,7 @@ end
 local function handleSetAllocWeightedRemainder(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local label = ctx.args.item ---@type string
-    local weight = ctx.args.value ---@type number
+    local weight = mClip(ctx.args.value) ---@type number
 
     if weight <= 0 then
         return ctx.replyErr(
@@ -979,7 +985,7 @@ end
 ---@param ctx cbb.Context
 local function handleAllocRebalance(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
-    local toMove = ctx.args.value ---@type number
+    local toMove = mClip(ctx.args.value) ---@type number
     allocation.rebalance(toMove, true)
     local pool = secprice.getSecPool()
     local itemsToMove = toMove / pool:midPrice()
@@ -991,7 +997,7 @@ end
 local function handleMint(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local id = ctx.args.id ---@type string
-    local amount = ctx.args.amount ---@type number
+    local amount = mClip(ctx.args.amount) ---@type number
 
     if not id:match("^lp:[^~]*~NONE$") then
         return ctx.replyErr("Not a valid asset ID", ctx.argTokens.id)
@@ -1202,7 +1208,7 @@ end
 ---@param ctx cbb.Context
 local function handleProposeFee(ctx)
     local label = ctx.args.pool ---@type string
-    local multiplier = ctx.args.multiplier ---@type number
+    local multiplier = mClip(ctx.args.multiplier) ---@type number
     local description = ctx.args.description ---@type string
 
     multiplier = math.min(2, math.max(0.5, multiplier))
@@ -1233,7 +1239,7 @@ end
 ---@param ctx cbb.Context
 local function handleProposeWeight(ctx)
     local label = ctx.args.pool ---@type string
-    local multiplier = ctx.args.multiplier ---@type number
+    local multiplier = mClip(ctx.args.multiplier) ---@type number
     local description = ctx.args.description ---@type string
 
     multiplier = math.min(2, math.max(0.5, multiplier))
@@ -1282,7 +1288,7 @@ end
 ---@param ctx cbb.Context
 local function handleVote(ctx)
     local id = ctx.args.id ---@type number
-    local ratio = ctx.args.ratio ---@type number
+    local ratio = mClip(ctx.args.ratio) ---@type number
 
     ratio = math.min(1, math.max(0, ratio))
 
@@ -1361,7 +1367,7 @@ end
 
 ---@param ctx cbb.Context
 local function handleListPropositions(ctx)
-    local pageNumber = ctx.args.page or 1 ---@type number
+    local pageNumber = mClip(ctx.args.page or 1) ---@type number
 
     local out = {{ text = "Propositions:" }} ---@type cbb.FormattedBlock[]
     local props = {} ---@type Proposition[]
@@ -1377,7 +1383,7 @@ end
 
 ---@param ctx cbb.Context
 local function handleListUnvotedPropositions(ctx)
-    local pageNumber = ctx.args.page or 1 ---@type number
+    local pageNumber = mClip(ctx.args.page or 1) ---@type number
 
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
 
@@ -1395,10 +1401,6 @@ local function handleListUnvotedPropositions(ctx)
     return ctx.reply(table.unpack(out))
 end
 
-local recursiveWrongPool = {
-    
-}
-
 local root = cbb.literal("lp") "lp" {
     cbb.literal("help") "help" {
         help = "Provides this help message",
@@ -1407,7 +1409,7 @@ local root = cbb.literal("lp") "lp" {
         end,
         cbb.integerExpr "page" {
             execute = function(ctx)
-                return cbb.sendHelpTopic(2, ctx, 10, ctx.args.page)
+                return cbb.sendHelpTopic(2, ctx, 10, mClip(ctx.args.page))
             end
         }
     },
@@ -1576,7 +1578,7 @@ local root = cbb.literal("lp") "lp" {
             end,
             cbb.integerExpr "page" {
                 execute = function(ctx)
-                    return cbb.sendHelpTopic(2, ctx, 10, ctx.args.page)
+                    return cbb.sendHelpTopic(2, ctx, 10, mClip(ctx.args.page))
                 end
             }
         },
