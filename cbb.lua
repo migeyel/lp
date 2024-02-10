@@ -136,13 +136,38 @@ local number = makeBuilder {
     end,
 }
 
+--- Turns a Lua expression token into a number.
+--- @param t cbb.Token
+--- @return number?
+local function evaluate(t)
+    local f = load("return " .. t.value, "", "t", {})
+    if not f then return end
+    local c = coroutine.create(f)
+    debug.sethook(c, error, "", 3)
+    local ok, val = coroutine.resume(c)
+    if ok and type(val) == "number" then return val end
+end
+
 --- Recognizes many Lua expressions that result numbers and returns them.
 --- @type cbb.Builder
-local numberExpr = number
+local numberExpr = makeBuilder {
+    desc = "a number expression",
+    tstr = "numexpr",
+    parse = evaluate,
+}
 
 --- Recognizes many Lua expressions that result integers and returns them.
 --- @type cbb.Builder
-local integerExpr = integer
+local integerExpr = makeBuilder {
+    desc = "an integer expression",
+    tstr = "intexpr",
+    parse = function(t)
+        local d = evaluate(t)
+        if d and d % 1 == 0 then
+            return d
+        end
+    end,
+}
 
 --- Recognizes strings and returns them.
 --- @type cbb.Builder
