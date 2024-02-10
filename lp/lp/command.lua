@@ -1451,7 +1451,14 @@ end
 local function handleDistribute(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
     local amount = ctx.args.amount ---@type number
-    local dists = sessions.distribute(amount, true)
+    local dists, total, shares = sessions.distribute(amount, true)
+    ctx.reply({
+        text = ("Distributing %g KST to %g shares (%g KST/share)"):format(
+            total,
+            shares,
+            total / shares
+        )
+    })
     local players = {}
     for _, player in ipairs(chatbox.getPlayers()) do
         players[player.uuid] = true

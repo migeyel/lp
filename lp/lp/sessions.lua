@@ -420,7 +420,7 @@ end
 
 --- @param amount number
 --- @param commit boolean
---- @return table<string, number>
+--- @return table<string, number>, number, number
 local function distribute(amount, commit)
     amount = math.max(0, amount)
     local _, trueFundDelta = wallet.reallocateFee(-amount, false)
@@ -435,7 +435,7 @@ local function distribute(amount, commit)
         dists[acct.uuid] = dist
     end
     if commit then state:commitMany(wallet.state, pools.state) end
-    return dists
+    return dists, toDistribute, total
 end
 
 return {
