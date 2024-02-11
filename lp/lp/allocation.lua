@@ -4,8 +4,8 @@ local util = require "lp.util"
 local threads = require "lp.threads"
 local event = require "lp.event"
 
-local MEAN_ALLOCATION_TIME = 300
-local KRIST_RATE = 1
+local MEAN_ALLOCATION_TIME = 60
+local ALLOCATION_RATE = 0.002
 
 local globalReallocEvent = event.register()
 
@@ -120,12 +120,19 @@ local function shuffledKeys(table)
     return pad
 end
 
---- @param kstToMove number
+--- @param rate number
 --- @param commit boolean
-local function rebalance(kstToMove, commit)
-    kstToMove = util.mFloor(kstToMove)
+local function rebalance(rate, commit)
+    rate = math.max(0, math.min(1, rate))
 
     local positiveDeltas, negativeDeltas = computeTargetDeltas()
+
+    local total = 0
+    for _, amt in pairs(positiveDeltas) do total = total + amt end
+    for _, amt in pairs(negativeDeltas) do total = total - amt end
+
+    local kstToMove = util.mFloor(rate * total)
+
     local positiveKeys = shuffledKeys(positiveDeltas)
     local negativeKeys = shuffledKeys(negativeDeltas)
 
@@ -135,7 +142,7 @@ local function rebalance(kstToMove, commit)
         local id = negativeKeys[i]
         local pool = pools.get(id)
         if pool then
-            local delta = math.max(-negRemaining, negativeDeltas[id])
+            local delta = math.max(-negRemaining, negativeDeltas[id] * rate)
             pool:reallocKst(delta, false, true)
             wallet.reallocateDyn(-delta, false)
             negRemaining = util.mFloor(negRemaining + delta)
@@ -153,7 +160,7 @@ local function rebalance(kstToMove, commit)
         local id = positiveKeys[i]
         local pool = pools.get(id)
         if pool then
-            local delta = math.min(posRemaining, positiveDeltas[id])
+            local delta = math.min(posRemaining, positiveDeltas[id] * rate)
             pool:reallocKst(delta, false, true)
             wallet.reallocateDyn(-delta, false)
             posRemaining = util.mFloor(posRemaining - delta)
@@ -172,8 +179,7 @@ end
 threads.register(function()
     while true do
         sleep(math.random(0, 2 * MEAN_ALLOCATION_TIME))
-        local amt = -1 / KRIST_RATE * math.log(1 - math.random())
-        rebalance(amt, true)
+        rebalance(ALLOCATION_RATE, true)
     end
 end)
 
