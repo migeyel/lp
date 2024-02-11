@@ -1257,6 +1257,13 @@ local function handleProposeFee(ctx)
     local multiplier = mClip(ctx.args.multiplier) ---@type number
     local description = ctx.args.description ---@type string
 
+    if multiplier > 2 or multiplier < 0.5 then
+        return ctx.replyErr(
+            "The multiplier must be in the [0.5, 2] range",
+            ctx.argTokens.multipliers
+        )
+    end
+
     multiplier = math.min(2, math.max(0.5, multiplier))
 
     local pool = pools.getByTag(label)
@@ -1287,6 +1294,13 @@ local function handleProposeWeight(ctx)
     local label = ctx.args.pool ---@type string
     local multiplier = mClip(ctx.args.multiplier) ---@type number
     local description = ctx.args.description ---@type string
+
+    if multiplier > 2 or multiplier < 0.5 then
+        return ctx.replyErr(
+            "The multiplier must be in the [0.5, 2] range",
+            ctx.argTokens.multipliers
+        )
+    end
 
     multiplier = math.min(2, math.max(0.5, multiplier))
 
