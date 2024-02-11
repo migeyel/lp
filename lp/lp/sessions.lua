@@ -280,7 +280,7 @@ function Account:tryBuy(pool, amount, commit)
     local priceNoFee = pool:buyPrice(amount)
     local fee = pool:buyFee(amount)
     local priceWithFee = util.mCeil(priceNoFee + fee)
-    if self:balance() < priceWithFee then return false end
+    if self.balance < priceWithFee then return false end
 
     self:transfer(-priceWithFee, false)
     pool:reallocItems(-amount, false)
