@@ -432,7 +432,9 @@ local function distribute(amount, commit)
         local ratio = secs / total
         local dist = util.mFloor(ratio * toDistribute)
         acct:transfer(dist, false)
-        dists[acct.uuid] = dist
+        if dist > 0 then
+            dists[acct.uuid] = dist
+        end
     end
     if commit then state:commitMany(wallet.state, pools.state) end
     return dists, toDistribute, total
