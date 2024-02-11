@@ -251,6 +251,47 @@ function Account:tryTransferAsset(id, delta, commit)
     return true
 end
 
+---@param pool Pool
+---@param amount number
+---@param commit boolean
+function Account:sell(pool, amount, commit)
+    assert(type(amount == "number") and amount % 1 == 0)
+
+    local priceNoFee = pool:sellPrice(amount)
+    local fee = pool:sellFee(amount)
+    local priceWithFee = util.mFloor(priceNoFee - fee)
+
+    self:transfer(priceWithFee, false)
+    pool:reallocItems(amount, false)
+    pool:reallocKst(-priceNoFee, false)
+    wallet.reallocateFee(fee / 2, false)
+    if commit then pools.state:commitMany(state, wallet.state) end
+
+    sellEvent.queue(pool:id())
+end
+
+---@param pool Pool
+---@param amount number
+---@param commit boolean
+---@return boolean
+function Account:tryBuy(pool, amount, commit)
+    assert(type(amount == "number") and amount % 1 == 0)
+
+    local priceNoFee = pool:buyPrice(amount)
+    local fee = pool:buyFee(amount)
+    local priceWithFee = util.mCeil(priceNoFee + fee)
+    if self:balance() < priceWithFee then return false end
+
+    self:transfer(-priceWithFee, false)
+    pool:reallocItems(-amount, false)
+    pool:reallocKst(priceNoFee, false)
+    wallet.reallocateFee(fee / 2, false)
+    if commit then pools.state:commitMany(state, wallet.state) end
+
+    buyEvent.queue(pool:id())
+    return true
+end
+
 ---@class Session
 ---@field uuid string
 ---@field lastActive number
@@ -345,20 +386,9 @@ end
 ---@return boolean
 function Session:tryBuy(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
-    local priceNoFee = pool:buyPrice(amount)
-    local priceWithFee, newBuyFees, newSellFees = self:buyPriceWithFee(pool, amount)
-    if self:balance() < priceWithFee then return false end
-
+    if not self:account():tryBuy(pool, amount, false) then return false end
     self.lastActive = os.epoch("utc")
-    self:transfer(-priceWithFee, false)
-    self.buyFees[pool:id()] = newBuyFees
-    self.sellFees[pool:id()] = newSellFees
-    pool:reallocItems(-amount, false)
-    pool:reallocKst(priceNoFee, false)
-    if commit then pools.state:commitMany(state) end
-
-    buyEvent.queue(pool:id())
-
+    if commit then pools.state:commitMany(state, wallet.state) end
     return true
 end
 
@@ -367,39 +397,17 @@ end
 ---@param commit boolean
 function Session:sell(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
-
-    local priceNoFee = pool:sellPrice(amount)
-    local priceWithFee, newBuyFees, newSellFees = self:sellPriceWithFee(pool, amount)
-
+    self:account():sell(pool, amount, false)
     self.lastActive = os.epoch("utc")
-    self:transfer(priceWithFee, false)
-    self.buyFees[pool:id()] = newBuyFees
-    self.sellFees[pool:id()] = newSellFees
-    pool:reallocItems(amount, false)
-    pool:reallocKst(-priceNoFee, false)
-    if commit then pools.state:commitMany(state) end
-
+    if commit then pools.state:commitMany(state, wallet.state) end
     sellEvent.queue(pool:id())
 end
 
 function Session:close()
-    for id, fee in pairs(self.buyFees) do
-        if fee > 0 then
-            local pool = pools.get(id)
-            if pool then pools.priceChangeEvent.queue(pool:id()) end
-            wallet.reallocateFee(fee / 2, false)
-        end
-    end
-    for id, fee in pairs(self.sellFees) do
-        local pool = pools.get(id)
-        if pool then pools.priceChangeEvent.queue(pool:id()) end
-        wallet.reallocateFee(fee / 2, false)
-    end
-
     local acct = self:account()
     if acct.persist or not wallet.getIsKristUp() then
         state.session = nil
-        state:commitMany(pools.state, wallet.state)
+        state:commitMany(pools.state)
         endEvent.queue(self.uuid, 0, acct.balance)
     else
         local amt, rem = acct:withdraw(math.floor(acct.balance), false)

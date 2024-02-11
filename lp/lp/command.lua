@@ -233,9 +233,10 @@ local function handlePay(ctx)
 end
 
 ---@param ctx cbb.Context
-local function handleBuy(ctx)
-    local label = ctx.args.item ---@type string
-    local amount = mClip(ctx.args.amount) ---@type integer
+---@param pool Pool
+---@param amount number
+local function handleBuyPhysical(ctx, pool, amount)
+    assert(not pool:isDigital())
 
     local session = sessions.get()
     if not session then
@@ -246,60 +247,92 @@ local function handleBuy(ctx)
     end
 
     amount = math.floor(math.max(0, math.min(65536, amount)))
-    local pool = pools.getByTag(label)
-    if pool then
-        local price = util.mCeil(pool:buyPrice(amount) + pool:buyFee(amount))
-        if price > session:balance() then
-            return ctx.replyErr(
-                ("You don't have the %g KST necessary to buy this"):format(
-                    price
-                )
+    local price = util.mCeil(pool:buyPrice(amount) + pool:buyFee(amount))
+    if price > session:balance() then
+        return ctx.replyErr(
+            ("You don't have the %g KST necessary to buy this"):format(
+                price
             )
+        )
+    end
+
+    if session:tryBuy(pool, amount, true) then
+        log:info(("%s bought %d units of %q for %g"):format(
+            ctx.user,
+            amount,
+            pool.label,
+            price
+        ))
+        local remaining = amount
+        while remaining > 0 do
+            local guard1 = inventory.turtleMutexes[1].lock()
+            local guard2 = inventory.turtleMutex.lock()
+            turtle.select(1)
+            turtle.drop()
+            local pushed = inventory.get().pushItems(
+                modem.getNameLocal(),
+                pool.item,
+                remaining,
+                1,
+                pool.nbt
+            )
+            turtle.select(1)
+            turtle.drop()
+            guard1.unlock()
+            guard2.unlock()
+            remaining = remaining - pushed
         end
-        if pool:isDigital() then
-            if session:tryBuy(pool, amount, false) then
-                session:account():transferAsset(pool:id(), amount, false)
-                pools.state:commitMany(sessions.state)
-                log:info(("%s bought %d units of %q for %g"):format(
-                    ctx.user,
-                    amount,
-                    pool.label,
-                    price
-                ))
-                ctx.reply({
-                    text = ("Bought %d units of %q for %g"):format(
-                        amount,
-                        pool.label,
-                        price
-                    )
-                })
-            end
-        elseif session:tryBuy(pool, amount, true) then
-            log:info(("%s bought %d units of %q for %g"):format(
-                ctx.user,
+    end
+end
+
+---@param ctx cbb.Context
+---@param pool Pool
+---@param amount number
+local function handleBuyDigital(ctx, pool, amount)
+    assert(pool:isDigital())
+
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, false)
+
+    amount = math.floor(math.max(0, math.min(65536, amount)))
+    local price = util.mCeil(pool:buyPrice(amount) + pool:buyFee(amount))
+    if price > acct.balance then
+        return ctx.replyErr(
+            ("You don't have the %g KST necessary to buy this"):format(
+                price
+            )
+        )
+    end
+
+    if acct:tryBuy(pool, amount, false) then
+        acct:transferAsset(pool:id(), amount, false)
+        pools.state:commitMany(sessions.state, wallet.state)
+        log:info(("%s bought %d units of %q for %g"):format(
+            ctx.user,
+            amount,
+            pool.label,
+            price
+        ))
+        ctx.reply({
+            text = ("Bought %d units of %q for %g"):format(
                 amount,
                 pool.label,
                 price
-            ))
-            local remaining = amount
-            while remaining > 0 do
-                local guard1 = inventory.turtleMutexes[1].lock()
-                local guard2 = inventory.turtleMutex.lock()
-                turtle.select(1)
-                turtle.drop()
-                local pushed = inventory.get().pushItems(
-                    modem.getNameLocal(),
-                    pool.item,
-                    remaining,
-                    1,
-                    pool.nbt
-                )
-                turtle.select(1)
-                turtle.drop()
-                guard1.unlock()
-                guard2.unlock()
-                remaining = remaining - pushed
-            end
+            )
+        })
+    end
+end
+
+---@param ctx cbb.Context
+local function handleBuy(ctx)
+    local label = ctx.args.item ---@type string
+    local amount = mClip(ctx.args.amount) ---@type integer
+
+    local pool = pools.getByTag(label)
+    if pool then
+        if pool:isDigital() then
+            return handleBuyDigital(ctx, pool, amount)
+        else
+            return handleBuyPhysical(ctx, pool, amount)
         end
     else
         return ctx.replyErr(
@@ -314,18 +347,12 @@ local function handleSell(ctx)
     local label = ctx.args.item ---@type string
     local amount = mClip(ctx.args.amount) ---@type integer
 
-    local session = sessions.get()
-    if not session then
-        session = tryStartSession(ctx)
-        if not session then return end
-    elseif ctx.data.user.uuid ~= session.uuid then
-        return ctx.replyErr("Start a session first with \\lp start")
-    end
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, false)
 
     amount = math.floor(math.max(0, math.min(65536, amount)))
     local pool = pools.getByTag(label)
     if pool and pool:isDigital() then
-        if session:account():getAsset(pool:id()) < amount then
+        if acct:getAsset(pool:id()) < amount then
             return ctx.replyErr(
                 ("You don't have the %g items necessary to buy this"):format(
                     amount
@@ -334,9 +361,9 @@ local function handleSell(ctx)
         end
 
         local price = util.mFloor(pool:sellPrice(amount) - pool:sellFee(amount))
-        if session:account():tryTransferAsset(pool:id(), -amount, false) then
-            session:sell(pool, amount, false)
-            pools.state:commitMany(sessions.state)
+        if acct:tryTransferAsset(pool:id(), -amount, false) then
+            acct:sell(pool, amount, false)
+            pools.state:commitMany(sessions.state, wallet.state)
             log:info(("%s sold %d units of %q for %g"):format(
                 ctx.user,
                 amount,
