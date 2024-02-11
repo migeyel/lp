@@ -229,33 +229,35 @@ function Proposition:tryExpire(commit)
         local votes = tally.yes + tally.no
         if votes >= total * QUORUM and tally.yes > tally.no then
             -- Execute actions
-            if self.action.type == "fee" then
-                local pool = pools.get(self.action.poolId)
-                if pool then
-                    local feeRate = pool:getFeeRate()
-                    local newRate = feeRate * self.action.multiplier
-                    newRate = math.max(0.001, math.min(0.95, newRate))
-                    pool:setFeeRate(newRate, false)
-                end
-                if commit then state:commitMany(pools.state) end
-            elseif self.action.type == "weight" then
-                local pool = pools.get(self.action.poolId)
-                if pool and pool.dynAlloc and pool.dynAlloc.type == "weighted_remainder" then
-                    local weightSum = 0
-                    local weightCount = 0
-                    for _, p in pools.pools() do
-                        if p and p.dynAlloc and p.dynAlloc.type == "weighted_remainder" then
-                            weightSum = weightSum + p.dynAlloc.weight
-                            weightCount = weightCount + 1
-                        end
+            if self.action then
+                if self.action.type == "fee" then
+                    local pool = pools.get(self.action.poolId)
+                    if pool then
+                        local feeRate = pool:getFeeRate()
+                        local newRate = feeRate * self.action.multiplier
+                        newRate = math.max(0.001, math.min(0.95, newRate))
+                        pool:setFeeRate(newRate, false)
                     end
-                    local weightAvg = weightSum / weightCount
-                    local weight = pool.dynAlloc.weight
-                    local newWeight = weight * self.action.multiplier
-                    newWeight = math.min(2 * weightAvg, math.max(0.5 * weightAvg, newWeight))
-                    pool.dynAlloc.weight = newWeight
+                    if commit then state:commitMany(pools.state) end
+                elseif self.action.type == "weight" then
+                    local pool = pools.get(self.action.poolId)
+                    if pool and pool.dynAlloc and pool.dynAlloc.type == "weighted_remainder" then
+                        local weightSum = 0
+                        local weightCount = 0
+                        for _, p in pools.pools() do
+                            if p and p.dynAlloc and p.dynAlloc.type == "weighted_remainder" then
+                                weightSum = weightSum + p.dynAlloc.weight
+                                weightCount = weightCount + 1
+                            end
+                        end
+                        local weightAvg = weightSum / weightCount
+                        local weight = pool.dynAlloc.weight
+                        local newWeight = weight * self.action.multiplier
+                        newWeight = math.min(2 * weightAvg, math.max(0.5 * weightAvg, newWeight))
+                        pool.dynAlloc.weight = newWeight
+                    end
+                    if commit then state:commitMany(pools.state) end
                 end
-                if commit then state:commitMany(pools.state) end
             end
         else
             if commit then state.commit() end
