@@ -289,6 +289,7 @@ local function reloadFullHistory()
     -- log-linear.
     fullHistory = HistoryState.new()
     for _, filename in ipairs(fs.list(historyDir)) do
+        sleep(0)
         local f = assert(fs.open(fs.combine(historyDir, filename), "rb"))
         local new = HistoryState.decode(tostring(f.readAll()))
         fullHistory = fullHistory:merge(new)
