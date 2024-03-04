@@ -496,6 +496,7 @@ local function handleAccount(id, rch, uuid)
         success = {
             account = {
                 balance = account.balance,
+                frequency = account.storageFrequency,
             },
         },
     })

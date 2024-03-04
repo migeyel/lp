@@ -214,6 +214,7 @@ proto.Response = lproto.message {
         -- Information about the account.
         account = lproto.message {
             balance = lproto.double (1);
+            frequency = lproto.uint53 (2);
         } (4);
     } (1);
 
