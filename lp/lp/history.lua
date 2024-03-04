@@ -260,7 +260,7 @@ assert(historyDir, "history directory disk not found")
 -- We store the history as a set of files, one per day, in a directory. Every
 -- file holds a separate serialized history entry. We update by appending to the
 -- latest file and decode into memory by merging all files using merge().
-local MAX_FILES = 7
+local MAX_FILES = 4
 
 --- The history of all files in the directory.
 local fullHistory = HistoryState.new()
