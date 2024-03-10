@@ -1798,12 +1798,6 @@ threads.register(function()
     inventory.get()
     while true do
         local _, user, command, args, etc = os.pullEvent("command")
-        if etc.ownerOnly then
-            cbb.tell("PG231", "&8" .. user, {
-                text = "^" .. table.concat({ command, unpack(args) }, " "),
-                color = cbb.colors.GRAY,
-            })
-        end
         cbb.execute(root, BOT_NAME, { "command", user, command, args, etc })
     end
 end)
