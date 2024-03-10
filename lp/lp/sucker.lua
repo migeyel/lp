@@ -1,8 +1,6 @@
 --- Sucks items from the top of the turtle.
 
 local INTERVAL = 1
-local SECURITY_PH_ID = "minecraft:written_book~66b06ff3af454ee8ca84046d7b418b2e"
-local SECURITY_DG_ID = "lp:security~NONE"
 
 local pools = require "lp.pools"
 local sessions = require "lp.sessions"
@@ -54,39 +52,6 @@ local function suck()
                         amt,
                         pool.label,
                         session:sellPriceWithFee(pool, amt)
-                    ))
-                else
-                    inventory.get().pushItems(
-                        modem.getNameLocal(),
-                        item.name,
-                        item.count,
-                        nil,
-                        item.nbt
-                    )
-                end
-            elseif session and poolId == SECURITY_PH_ID and pools.get(SECURITY_DG_ID) then
-                -- Special logic for securities digital transition
-                local amt = inventory.get().pullItems(modem.getNameLocal(), 1)
-                if amt < item.count then
-                    local space = inventory.get().totalSpaceForItem(
-                        item.name,
-                        item.nbt
-                    )
-                    if space >= item.count - amt then
-                        inventory.get().defrag()
-                        amt = amt + inventory.get().pullItems(
-                            modem.getNameLocal(),
-                            1
-                        )
-                    end
-                end
-                pool = pools.get(SECURITY_DG_ID) -- pullItems() yields
-                session = sessions.get()
-                if pool and session then
-                    session:account():transferAsset(SECURITY_DG_ID, amt, true)
-                    log:info(("%s deposited %g securities"):format(
-                        session:account().username,
-                        amt
                     ))
                 else
                     inventory.get().pushItems(
