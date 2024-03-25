@@ -1069,6 +1069,7 @@ end
 ---@param ctx cbb.Context
 local function handleMint(ctx)
     if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local user = ctx.args.user ---@type string
     local id = ctx.args.id ---@type string
     local amount = mClip(ctx.args.amount) ---@type number
 
@@ -1076,7 +1077,11 @@ local function handleMint(ctx)
         return ctx.replyErr("Not a valid asset ID", ctx.argTokens.id)
     end
 
-    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local acct = sessions.getAcctByUsername(user)
+    if not acct then
+        return ctx.replyErr("Not a valid acct", ctx.argTokens.user)
+    end
+
     local _, bal = acct:transferAsset(id, amount, true)
 
     ctx.reply { text = "Balance: " .. tostring(bal) }
@@ -1680,11 +1685,13 @@ local root = cbb.literal("lp") "lp" {
         execute = handleKick,
     },
     cbb.literal("mint") "mint" {
-        cbb.string "id" {
-            cbb.numberExpr "amount" {
-                execute = handleMint,
+        cbb.string "user" {
+            cbb.string "id" {
+                cbb.numberExpr "amount" {
+                    execute = handleMint,
+                },
             },
-        },
+        }
     },
     cbb.literal("distribute") "distribute" {
         cbb.numberExpr "amount" {
