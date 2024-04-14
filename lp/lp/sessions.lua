@@ -385,7 +385,7 @@ function Session:sell(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
     local earned, fee = self:account():sell(pool, amount, false)
     self.lastActive = os.epoch("utc")
-    self.earned = self.earned + fee
+    self.earned = self.earned + earned
     self.fees = self.fees + fee
     if commit then pools.state:commitMany(state, wallet.state) end
     sellEvent.queue(pool:id())
