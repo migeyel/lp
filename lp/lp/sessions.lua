@@ -40,6 +40,7 @@ local startEvent = event.register("session_start")
 -- uuid: string
 -- transferred: number
 -- remaining: number
+-- summary: { paid: number, earned: number, fees: number }
 local endEvent = event.register("session_end")
 
 -- id: string
@@ -254,6 +255,8 @@ end
 ---@param pool Pool
 ---@param amount number
 ---@param commit boolean
+---@return number earned
+---@return number fee
 function Account:sell(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
 
@@ -268,19 +271,22 @@ function Account:sell(pool, amount, commit)
     if commit then pools.state:commitMany(state, wallet.state) end
 
     sellEvent.queue(pool:id())
+    return priceWithFee, fee
 end
 
 ---@param pool Pool
 ---@param amount number
 ---@param commit boolean
----@return boolean
+---@return boolean ok
+---@return number paid
+---@return number fee
 function Account:tryBuy(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
 
     local priceNoFee = pool:buyPrice(amount)
     local fee = pool:buyFee(amount)
     local priceWithFee = util.mCeil(priceNoFee + fee)
-    if self.balance < priceWithFee then return false end
+    if self.balance < priceWithFee then return false, 0, 0 end
 
     self:transfer(-priceWithFee, false)
     pool:reallocItems(-amount, false)
@@ -289,15 +295,15 @@ function Account:tryBuy(pool, amount, commit)
     if commit then pools.state:commitMany(state, wallet.state) end
 
     buyEvent.queue(pool:id())
-    return true
+    return true, priceWithFee, fee
 end
 
 ---@class Session
 ---@field uuid string
 ---@field lastActive number
----@field buyFees table
----@field sellFees table
----@field closed boolean
+---@field paid number
+---@field earned number
+---@field fees number
 local Session = {}
 
 ---@return Session|nil
@@ -318,8 +324,9 @@ local function create(uuid, username, commit)
     state.session = {
         uuid = uuid,
         lastActive = os.epoch("utc"),
-        buyFees = {},
-        sellFees = {},
+        paid = 0,
+        earned = 0,
+        fees = 0,
     }
 
     if commit then state.commit() end
@@ -350,34 +357,10 @@ end
 ---@param pool Pool
 ---@param amount number
 ---@return number
----@return number
----@return number
-function Session:buyPriceWithFee(pool, amount)
-    local price = pool:buyPrice(amount)
-    local id = pool:id()
-    if price == 1 / 0 then
-        return 1 / 0, self.buyFees[id] or 0, self.sellFees[id] or 0
-    end
-    local buyFee = pool:buyFee(amount)
-    local priceWithFee = mCeil(price + buyFee)
-    local newSellFees = self.sellFees[id] or 0
-    local newBuyFees = mFloor((self.buyFees[id] or 0) + buyFee)
-    return priceWithFee, newBuyFees, newSellFees
-end
-
----@param pool Pool
----@param amount number
----@return number
----@return number
----@return number
 function Session:sellPriceWithFee(pool, amount)
     local price = pool:sellPrice(amount)
-    local id = pool:id()
     local sellFee = pool:sellFee(amount)
-    local priceWithFee = mFloor(price - sellFee)
-    local newBuyFees = self.buyFees[id] or 0
-    local newSellFees = mFloor((self.sellFees[id] or 0) + sellFee)
-    return priceWithFee, newBuyFees, newSellFees
+    return mFloor(price - sellFee)
 end
 
 ---@param pool Pool
@@ -386,8 +369,11 @@ end
 ---@return boolean
 function Session:tryBuy(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
-    if not self:account():tryBuy(pool, amount, false) then return false end
+    local ok, paid, fee = self:account():tryBuy(pool, amount, false)
+    if not ok then return false end
     self.lastActive = os.epoch("utc")
+    self.paid = self.paid + paid
+    self.fees = self.fees + fee
     if commit then pools.state:commitMany(state, wallet.state) end
     return true
 end
@@ -397,23 +383,31 @@ end
 ---@param commit boolean
 function Session:sell(pool, amount, commit)
     assert(type(amount == "number") and amount % 1 == 0)
-    self:account():sell(pool, amount, false)
+    local earned, fee = self:account():sell(pool, amount, false)
     self.lastActive = os.epoch("utc")
+    self.earned = self.earned + fee
+    self.fees = self.fees + fee
     if commit then pools.state:commitMany(state, wallet.state) end
     sellEvent.queue(pool:id())
 end
 
 function Session:close()
     local acct = self:account()
+    local summary = {
+        paid = self.paid,
+        earned = self.earned,
+        fees = self.fees,
+    }
+
     if acct.persist or not wallet.getIsKristUp() then
         state.session = nil
         state:commitMany(pools.state)
-        endEvent.queue(self.uuid, 0, acct.balance)
+        endEvent.queue(self.uuid, 0, acct.balance, summary)
     else
         local amt, rem = acct:withdraw(math.floor(acct.balance), false)
         state.session = nil
         wallet.state:commitMany(state, pools.state)
-        endEvent.queue(self.uuid, amt, rem)
+        endEvent.queue(self.uuid, amt, rem, summary)
         wallet.sendPendingTx()
     end
 end

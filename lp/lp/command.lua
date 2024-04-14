@@ -85,17 +85,32 @@ local function tryStartSession(ctx)
         log:info("Started a session for " .. ctx.user)
         ctx.reply(
             {
-                text = "LP Notice\n",
-                formats = { cbb.formats.BOLD },
+                text = "Welcome to the LP!\n- You can buy using ",
             },
             {
-                text = table.concat {
-                    "Starting from 2024-02-04, LP Securities ownership will ",
-                    "now be tracked digitally. This measure aims to save on ",
-                    "ink costs as well as improve bookkeeping. Dropping books ",
-                    "in a session now brings them into \\lp balance. To sell, ",
-                    "use \\lp sell.",
-                },
+                text = "\\lp buy",
+                color = cbb.colors.GRAY,
+            },
+            {
+                text = "\n- For example: "
+            },
+            {
+                text = "\\lp buy ironingot 1",
+                color = cbb.colors.GRAY,
+            },
+            {
+                text = " or "
+            },
+            {
+                text = "\\lp buy \"iron ingot\" 1",
+                color = cbb.colors.GRAY,
+            },
+            {
+                text = "\n- Deposit Krist by running "
+            },
+            {
+                text = "/pay lp.kst <amount>",
+                color = cbb.colors.GRAY,
             }
         )
         return session
@@ -1828,28 +1843,24 @@ end)
 threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
-        local uuid, amt, rem = sessions.endEvent.pull()
-        if amt ~= 0 then
-            cbb.tell(uuid, BOT_NAME, {
-                text = (
-                    "Your %d KST were transferred. The remaining %g are stored "
-                        .. "in your account and will reappear in the next "
-                        .. "session."
-                ):format(
-                    amt,
-                    rem
-                ),
-            })
-        else
-            cbb.tell(uuid, BOT_NAME, {
-                text = (
-                    "Your balance of %g KST is stored in your account and will "
-                        .. "reappear in the next session."
-                ):format(
-                    rem
-                ),
-            })
-        end
+        local uuid, amt, rem, summary = sessions.endEvent.pull()
+        ---@cast summary table
+        cbb.tell(uuid, BOT_NAME, {
+            text = (table.concat {
+                "Session summary:",
+                "\n- Paid: %g KST",
+                "\n- Earned: %g KST",
+                "\n- Fees: %g KST",
+                "\n- Transferred: %g KST (toggle with \\lp persist)",
+                "\n- Stored for later: %g KST",
+            }):format(
+                summary.paid,
+                summary.earned,
+                summary.fees,
+                amt,
+                rem
+            ),
+        })
     end
 end)
 
