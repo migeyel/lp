@@ -100,7 +100,7 @@ local function handleOwnTx()
     ))
 
     local sessions = require "lp.sessions"
-    local metaname = tx.kv.metaname or ""
+    local metaname = tx.sent_metaname or ""
     local useruuid = tx.kv.useruuid or ""
     local username = (tx.kv.username or ""):lower()
     local acct = sessions.getAcctByUsername(metaname)
