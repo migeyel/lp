@@ -149,7 +149,9 @@ local function setWithdrawTx(account, amount, commit)
             to = receiver,
             amount = -delta,
             privateKey = pkey,
-            meta = {},
+            meta = {
+                ["return"] = account.username .. "@lp.kst",
+            },
             ud = { ---@type LpOutboxOutUd
                 accountUuid = account.uuid,
             }
