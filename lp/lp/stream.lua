@@ -167,14 +167,22 @@ local function unsetWithdrawTx(commit)
     local sessions = require "lp.sessions"
 
     local bv = stream:getBoxView()
-    if not bv:isOutboxKnown() then return false end
+    if not bv:isOutboxKnown() then
+        bv:abort()
+        return false
+    end
+
     local outbox = bv:getOutbox()
-    if not outbox then return true end
+    if not outbox then
+        bv:abort()
+        return true
+    end
 
     local ud = assert(outbox.ud, "can't unset refund transactions") ---@type LpOutboxOutUd
     local account = sessions.getAcctByUuid(ud.accountUuid)
     if not account then
         -- Account was deleted after the outgoing transaction was made. Can't unset.
+        bv:abort()
         return false
     end
 
@@ -232,6 +240,9 @@ threads.register(function()
                     bv:commit()
                 end
             end
+        else
+            log:info("No outbox")
+            bv:abort()
         end
         guard.unlock()
     end
