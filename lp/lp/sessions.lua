@@ -383,7 +383,7 @@ function Session:close()
         fees = self.fees,
     }
 
-    if acct.persist or not wallet.getIsKristUp() then
+    if acct.persist or not stream.getIsKristUp() then
         state.session = nil
         state:commitMany(pools.state)
         endEvent.queue(self.uuid, 0, acct.balance, summary)
