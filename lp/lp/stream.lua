@@ -9,6 +9,12 @@ local threads = require "lp.threads"
 local KRISTPAY_DOMAIN = "switchcraft.kst"
 local STREAM_PATH = "/lpstream"
 
+-- receiver uuid: string
+-- sender: string (username or krist address)
+-- amount: number
+-- message: string?
+local TransferReceivedEvent = event.register("transfer_received")
+
 --- @class KstreamState: State
 --- @field revision number? The state revision, if any.
 
@@ -94,15 +100,19 @@ local function handleOwnTx()
     ))
 
     local sessions = require "lp.sessions"
+    local metaname = tx.kv.metaname or ""
     local useruuid = tx.kv.useruuid or ""
     local username = (tx.kv.username or ""):lower()
-    local acct = sessions.getAcctByUuid(useruuid)
+    local acct = sessions.getAcctByUsername(metaname)
+              or sessions.getAcctByUuid(useruuid)
               or sessions.getAcctByUsername(username)
-
     if not acct then
-        local ref = username or useruuid
+        local ref = metaname ~= "" and metaname
+                 or useruuid ~= "" and useruuid
+                 or username ~= "" and username
+                 or ""
         log:error("No account " .. username)
-        local meta = { error = "Account " .. ref .. " not found" }
+        local meta = { error = "Account '" .. ref .. "' not found" }
         local refund = kstream.makeRefundFor(pkey, address, tx, meta, nil)
         bv:setOutbox(refund)
         bv:commit()
@@ -112,6 +122,7 @@ local function handleOwnTx()
         state.revision = bv:prepare()
         sessions.state:commitMany(state)
         bv:commit()
+        TransferReceivedEvent.queue(acct.uuid, tx.from, tx.value, tx.kv.message)
     end
 
     guard.unlock()
@@ -253,6 +264,7 @@ threads.register(function() while true do handleOwnTx() end end)
 threads.register(function() stream:listen() end)
 
 return {
+    TransferReceivedEvent = TransferReceivedEvent,
     address = address,
     boxViewMutex = outboxMutex,
     getIsKristUp = getIsKristUp,

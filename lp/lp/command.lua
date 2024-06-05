@@ -136,12 +136,6 @@ local function handleExit(ctx)
     end
 end
 
--- receiver uuid: string
--- sender: string (username or krist address)
--- amount: number
--- message: string?
-local TransferReceivedEvent = event.register("transfer_received")
-
 --- @param uuid string
 --- @param sender string
 --- @param amt number
@@ -1885,7 +1879,7 @@ end)
 threads.register(function()
     ChatboxReadyEvent.pull()
     while true do
-        local uuid, sender, amt, message = TransferReceivedEvent.pull()
+        local uuid, sender, amt, message = stream.TransferReceivedEvent.pull()
         tellTransferReceived(uuid, sender, amt, message)
     end
 end)
