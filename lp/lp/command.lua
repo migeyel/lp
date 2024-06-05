@@ -9,6 +9,7 @@ local util = require "lp.util"
 local log = require "lp.log"
 local cbb = require "cbb"
 local wallet = require "lp.wallet"
+local stream = require "lp.stream"
 local allocation = require "lp.allocation"
 local secprice = require "lp.secprice"
 local propositions = require "lp.propositions"
@@ -404,7 +405,7 @@ end
 ---@param ctx cbb.Context
 local function handleSysInfo(ctx)
     local usage = inv.get().getUsage()
-    local totalKrist = wallet.getIsKristUp() and wallet.fetchBalance()
+    local totalKrist = stream.getIsKristUp() and stream.fetchBalance(5)
     local allocPools = pools.totalKrist()
     local allocAccts = sessions.totalBalances()
     local allocDyn = wallet.getDynFund()
@@ -671,16 +672,33 @@ local function handleWithdraw(ctx)
             ctx.argTokens.amount
         )
     end
-    if not wallet.getIsKristUp() then
+    if not stream.getIsKristUp() then
         return ctx.replyErr(
             "Krist seems currently down, please try again later."
         )
     end
-    local amt, _ = acct:withdraw(amount, true)
-    if amt ~= 0 and not wallet.sendPendingTx() then
+    local guard = stream.boxViewMutex.tryLock(10)
+    if not guard then
+        return ctx.replyErr(
+            "Krist seems currently down, please try again later."
+        )
+    end
+    stream.setWithdrawTx(acct, amount, true)
+    local result = stream.sendPendingTx(10)
+    if result == "error" then
+        stream.unsetWithdrawTx(true)
+        guard.unlock()
         return ctx.replyErr(
             "An unknown error occurred while withdrawing, please ping PG231."
         )
+    elseif result == "timeout" then
+        stream.deferSend(guard)
+        return ctx.replyErr(
+            "Timed out sending your transaction. It has been queued and will be " ..
+            "sent once the connection gets reestablished."
+        )
+    else
+        guard.unlock()
     end
 end
 

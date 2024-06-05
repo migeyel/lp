@@ -38,6 +38,7 @@ local ok, err = xpcall(
         -- TODO move recovery into a thread and put it as a startup dependency.
         -- (So that it doesn't block waiting for the inventory to initialize)
         require "lp.echest".recover()
+        require "lp.stream"
         require "lp.wallet"
         require "lp.ui"
         require "lp.sucker"

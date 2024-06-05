@@ -1,10 +1,10 @@
-local KRISTPAY_DOMAIN = "switchcraft.kst"
-
 local state = require "lp.state".open "lp.session"
 local event = require "lp.event"
 local util = require "lp.util"
 local pools = require "lp.pools"
 local wallet = require "lp.wallet"
+local stream = require "lp.stream"
+local log = require "lp.log"
 
 local accountBalanceSum = 0
 
@@ -198,22 +198,6 @@ function Account:transferAsset(id, delta, commit)
     return delta, balance
 end
 
---- AAAAHHH PASSING `commit` IN AS A BOOLEAN ISN'T COMPOSABLE AT ALL!
---- The caller needs to know to commit BOTH sessions.state AND wallet.state!
----@param amount number
----@param commit boolean
-function Account:withdraw(amount, commit)
-    if amount > 0 then
-        local delta, rem = self:transfer(-amount, false)
-        local receiver = self.uuid:gsub("-", "") .. "@" .. KRISTPAY_DOMAIN
-        wallet.setPendingTx(receiver, -delta,  {}, false)
-        if commit then wallet.state:commitMany(state) end
-        return -delta, rem
-    else
-        return 0, self.balance
-    end
-end
-
 ---@param delta number
 ---@param commit boolean
 ---@return boolean
@@ -404,11 +388,28 @@ function Session:close()
         state:commitMany(pools.state)
         endEvent.queue(self.uuid, 0, acct.balance, summary)
     else
-        local amt, rem = acct:withdraw(math.floor(acct.balance), false)
         state.session = nil
-        wallet.state:commitMany(state, pools.state)
-        endEvent.queue(self.uuid, amt, rem, summary)
-        wallet.sendPendingTx()
+        state:commitMany(pools.state)
+        local guard = stream.boxViewMutex.tryLock(10)
+        if not guard then
+            return endEvent.queue(self.uuid, 0, acct.balance, summary)
+        end
+        local amt, rem = stream.setWithdrawTx(acct, math.floor(acct.balance), true)
+        local result = stream.sendPendingTx(10)
+        if result == "error" then
+            stream.unsetWithdrawTx(true)
+            log:error("Error while sending close tx: " .. acct.uuid .. " " .. amt)
+            guard.unlock()
+            endEvent.queue(self.uuid, 0, acct.balance, summary)
+        elseif result == "timeout" then
+            log:warn("Krist timeout sending close tx: " .. acct.uuid .. " " .. amt)
+            stream.deferSend(guard)
+            endEvent.queue(self.uuid, amt, rem, summary)
+        else
+            log:info("Sent " .. amt .. " krist to " .. acct.uuid)
+            guard.unlock()
+            endEvent.queue(self.uuid, amt, rem, summary)
+        end
     end
 end
 

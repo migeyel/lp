@@ -14,6 +14,18 @@ return function()
         end
     end
 
+    ---@param timeout number
+    ---@return MutexGuard?
+    function mutex.tryLock(timeout)
+        local timer = os.startTimer(timeout)
+        while slot do
+            local e, id = os.pullEvent()
+            if e == "timer" and id == timer then return end
+        end
+        os.cancelTimer(timer)
+        return mutex.lock()
+    end
+
     ---@return MutexGuard
     function mutex.lock()
         while slot do
