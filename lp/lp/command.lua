@@ -246,6 +246,7 @@ end
 ---@param pool Pool
 ---@param amount number
 local function handleBuyPhysical(ctx, pool, amount)
+    local confirm = ctx.args.confirm ---@type string?
     assert(not pool:isDigital())
 
     local session = sessions.get()
@@ -263,6 +264,12 @@ local function handleBuyPhysical(ctx, pool, amount)
             ("You don't have the %g KST necessary to buy this"):format(
                 price
             )
+        )
+    end
+
+    if price > 200 and not confirm then
+        return ctx.replyErr(
+            "Please append 'confirm' to your command for purchases of over 200 KST"
         )
     end
 
@@ -299,6 +306,7 @@ end
 ---@param pool Pool
 ---@param amount number
 local function handleBuyDigital(ctx, pool, amount)
+    local confirm = ctx.args.confirm ---@type string?
     assert(pool:isDigital())
 
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, false)
@@ -310,6 +318,12 @@ local function handleBuyDigital(ctx, pool, amount)
             ("You don't have the %g KST necessary to buy this"):format(
                 price
             )
+        )
+    end
+
+    if price > 200 and not confirm then
+        return ctx.replyErr(
+            "Please append 'confirm' to your command for purchases of over 200 KST"
         )
     end
 
@@ -356,6 +370,7 @@ end
 local function handleSell(ctx)
     local label = ctx.args.item ---@type string
     local amount = mClip(ctx.args.amount) ---@type integer
+    local confirm = ctx.args.confirm ---@type string?
 
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, false)
 
@@ -364,13 +379,19 @@ local function handleSell(ctx)
     if pool and pool:isDigital() then
         if acct:getAsset(pool:id()) < amount then
             return ctx.replyErr(
-                ("You don't have the %g items necessary to buy this"):format(
+                ("You don't have the %g items necessary to sell"):format(
                     amount
                 )
             )
         end
 
         local price = util.mFloor(pool:sellPrice(amount) - pool:sellFee(amount))
+        if price > 200 and not confirm then
+            return ctx.replyErr(
+                "Please append 'confirm' to your command for sales of over 200 KST"
+            )
+        end
+
         if acct:tryTransferAsset(pool:id(), -amount, false) then
             acct:sell(pool, amount, false)
             pools.state:commitMany(sessions.state, wallet.state)
@@ -1589,6 +1610,9 @@ local root = cbb.literal("lp") "lp" {
             cbb.integerExpr "amount" {
                 help = "Buys an item",
                 execute = handleBuy,
+                cbb.literal("confirm") "confirm" {
+                    execute = handleBuy,
+                }
             },
         },
     },
@@ -1597,6 +1621,9 @@ local root = cbb.literal("lp") "lp" {
             cbb.integerExpr "amount" {
                 help = "Sells a digital item",
                 execute = handleSell,
+                cbb.literal("confirm") "confirm" {
+                    execute = handleSell,
+                }
             },
         },
     },
