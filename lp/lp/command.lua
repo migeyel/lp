@@ -587,7 +587,20 @@ end
 
 ---@param ctx cbb.Context
 local function handleBalance(ctx)
-    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    local player = ctx.args.player ---@type string?
+
+    local acct
+    if player then
+        acct = sessions.getAcctByUsername(player)
+        if not acct then
+            return ctx.replyErr(
+                "That user has no account in the LP.",
+                ctx.argTokens.player
+            )
+        end
+    else
+        acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    end
 
     local out = {{ ---@type cbb.FormattedBlock[]
         text = ("Balance:\n- Krist: %g KST"):format(acct.balance)
@@ -1669,6 +1682,10 @@ local root = cbb.literal("lp") "lp" {
     cbb.literal("balance") "balance" {
         help = "Displays your balance",
         execute = handleBalance,
+        cbb.string "player" {
+            help = "Displays someone else's balance",
+            execute = handleBalance,
+        }
     },
     cbb.literal("baltop") "baltop" {
         help = "Displays top Krist balances",
