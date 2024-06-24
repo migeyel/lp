@@ -705,28 +705,22 @@ local function handleWithdraw(ctx)
             "Krist seems currently down, please try again later."
         )
     end
-    local guard = stream.boxViewMutex.tryLock(10)
-    if not guard then
+    local ok, _, _, uuid = stream.setWithdrawTx(acct, amount, true)
+    if not ok then
         return ctx.replyErr(
             "Krist seems currently down, please try again later."
         )
     end
-    stream.setWithdrawTx(acct, amount, true)
-    local result = stream.sendPendingTx(10)
+    local result = stream.sendPendingTx(uuid, 10)
     if result == "error" then
-        stream.unsetWithdrawTx(true)
-        guard.unlock()
         return ctx.replyErr(
             "An unknown error occurred while withdrawing, please ping PG231."
         )
     elseif result == "timeout" then
-        stream.deferSend(guard)
         return ctx.replyErr(
             "Timed out sending your transaction. It has been queued and will be " ..
             "sent once the connection gets reestablished."
         )
-    else
-        guard.unlock()
     end
 end
 

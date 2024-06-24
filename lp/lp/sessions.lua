@@ -390,24 +390,17 @@ function Session:close()
     else
         state.session = nil
         state:commitMany(pools.state)
-        local guard = stream.boxViewMutex.tryLock(10)
-        if not guard then
-            return endEvent.queue(self.uuid, 0, acct.balance, summary)
-        end
-        local amt, rem = stream.setWithdrawTx(acct, math.floor(acct.balance), true)
-        local result = stream.sendPendingTx(10)
+        local ok, amt, rem, uuid = stream.setWithdrawTx(acct, math.floor(acct.balance), true)
+        if not ok then return endEvent.queue(self.uuid, 0, acct.balance, summary) end
+        local result = stream.sendPendingTx(uuid, 10)
         if result == "error" then
-            stream.unsetWithdrawTx(true)
             log:error("Error while sending close tx: " .. acct.uuid .. " " .. amt)
-            guard.unlock()
             endEvent.queue(self.uuid, 0, acct.balance, summary)
         elseif result == "timeout" then
             log:warn("Krist timeout sending close tx: " .. acct.uuid .. " " .. amt)
-            stream.deferSend(guard)
             endEvent.queue(self.uuid, amt, rem, summary)
         else
             log:info("Sent " .. amt .. " krist to " .. acct.uuid)
-            guard.unlock()
             endEvent.queue(self.uuid, amt, rem, summary)
         end
     end

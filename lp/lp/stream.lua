@@ -1,5 +1,4 @@
 --- New shop wallet, integrated with kstream.
-local mutex = require "lp.mutex"
 local config = require "lp.setup"
 local kstream = require "kstream"
 local log = require "lp.log"
@@ -26,19 +25,8 @@ local TransferReceivedEvent = event.register("transfer_received")
 
 local state = require "lp.state".open "lp.kstream" --[[@as KstreamState]]
 
---- Held while there's an outgoing transaction by the transaction's owner.
----
---- If Krist is down, then this mutex will be bound up by either the incoming thread
---- issuing a refund or the outgoing thread issuing a withdrawal.
-local outboxMutex = mutex()
-
---- Variable for passing on the outbox mutex from the initial owner to the deferred
---- outbox forwarder thread.
---- @type MutexGuard?
-local outboxMutexPass = outboxMutex.lock()
-
---- To call after setting the pass variable.
-local outboxMutexPassEvent = event.register()
+local sendSuccessEvent = event.register()
+local sendFailureEvent = event.register()
 
 local pkey = config.pkey --[[@as string]]
 local address = kstream.makev2address(pkey)
@@ -64,34 +52,12 @@ local function fetchBalance(timeout)
     return stream:getBalance(address, timeout)
 end
 
-local function handleOwnTx()
-    stream:fetch()
-
-    -- Need to acquire so we can issue refunds.
-    local guard = outboxMutex.lock()
-
-    local bv = stream:getBoxView()
-    local tx = assert(bv:popInbox())
-
-    if tx.type ~= "transfer" then
-        guard.unlock()
-        bv:commit()
-        return
-    end
-
+function stream.onTransaction(ctx, tx)
+    if tx.type ~= "transfer" then return end
     ---@cast tx kstream.Transfer
 
-    if tx.to ~= address then
-        guard.unlock()
-        bv:commit()
-        return
-    end
-
-    if tx.from == address then
-        guard.unlock()
-        bv:commit()
-        return
-    end
+    if tx.to ~= address then return end
+    if tx.from == address then return end
 
     log:info(("Received %d KST from %s meta %s"):format(
         tx.value,
@@ -113,167 +79,131 @@ local function handleOwnTx()
                  or ""
         log:error("No account " .. username)
         local meta = { error = "Account '" .. ref .. "' not found" }
-        local refund = kstream.makeRefundFor(pkey, address, tx, meta, nil)
-        bv:setOutbox(refund)
-        bv:commit()
-        stream:send() -- Ignore failures *shrug*
+        local refund = kstream.makeRefund(pkey, address, tx, meta, nil)
+        if refund then ctx:enqueueSend(refund) end
     else
         acct:transfer(tx.value, false)
-        state.revision = bv:prepare()
-        sessions.state:commitMany(state)
-        bv:commit()
-        TransferReceivedEvent.queue(acct.uuid, tx.from, tx.value, tx.kv.message)
+
+        function ctx.onPrepare(revision)
+            state.revision = revision
+            sessions.state:commitMany(state)
+        end
+
+        function ctx.afterCommit()
+            TransferReceivedEvent.queue(acct.uuid, tx.from, tx.value, tx.kv.message)
+        end
+
+        return
+    end
+end
+
+function stream.onSendSuccess(ctx, tx, uuid)
+    log:info("Sent " .. tx.amount .. " KST to " ..tx.to)
+
+    function ctx.afterCommit()
+        sendSuccessEvent.queue(uuid)
+    end
+end
+
+function stream.onSendFailure(ctx, tx, uuid)
+    log:warn("Failed sending " .. tx.amount .. " KST to " .. tx.to)
+
+    function ctx.afterCommit()
+        sendFailureEvent.queue(uuid)
     end
 
-    guard.unlock()
+    local ud = tx.ud ---@type LpOutboxOutUd
+
+    -- Refund failure, nothing else to do.
+    if not ud then
+        log:warn("Send failure is a refund, giving up")
+        return
+    end
+
+    -- Withdraw failure, credit the account.
+    local sessions = require "lp.sessions"
+    local acct = sessions.getAcctByUuid(ud.accountUuid)
+    if not acct then return end
+    acct:transfer(tx.amount, false)
+    log:info("Crediting account back")
+
+    function ctx.onPrepare(revision)
+        state.revision = revision
+        sessions.state:commitMany(state)
+    end
 end
 
 --- Removes Krist from an account and sets up a withdraw transaction. Always commits.
 --- @param account Account
 --- @param amount number
 --- @param commit true
+--- @return boolean ok If the transaction was set, or timed out waiting for the mutex.
 --- @return number delta The true amount withdrawn.
 --- @return number rem The remaining balance.
+--- @return string? uuid The pending transaction uuid, if any.
 local function setWithdrawTx(account, amount, commit)
     assert(commit)
     local sessions = require "lp.sessions"
 
     if amount > 0 then
-        local bv = stream:getBoxView()
-        assert(not bv:getOutbox()) -- We trust that the caller holds the mutex.
-
         local delta, rem = account:transfer(-amount, false)
         local receiver = account.uuid:gsub("-", "") .. "@" .. KRISTPAY_DOMAIN
+        local uuid
 
-        bv:setOutbox({
-            to = receiver,
-            amount = -delta,
-            privateKey = pkey,
-            meta = {
-                ["return"] = account.username .. "@lp.kst",
-            },
-            ud = { ---@type LpOutboxOutUd
-                accountUuid = account.uuid,
-            }
-        })
+        local ok = stream:begin(function(ctx)
+            uuid = ctx:enqueueSend({
+                to = receiver,
+                amount = -delta,
+                privateKey = pkey,
+                meta = {
+                    ["return"] = account.username .. "@lp.kst",
+                },
+                ud = { ---@type LpOutboxOutUd
+                    accountUuid = account.uuid,
+                }
+            })
 
-        state.revision = bv:prepare()
-        sessions.state:commitMany(state)
-        bv:commit()
+            function ctx.onPrepare(revision)
+                state.revision = revision
+                sessions.state:commitMany(state)
+            end
+        end, 10)
 
-        return -delta, rem
+        return ok, -delta, rem, uuid
     else
-        return 0, account.balance
+        return true, 0, account.balance
     end
-end
-
---- Aborts an outgoing withdraw transaction and credits the account. Always commits.
----
---- Fails if the the backend doesn't know if the transaction has been sent (e.g. if the
---- request has been sent but the Krist node didn't return a response). Also fails if
---- we can't unset the transaction for some other reason.
----
---- @param commit true
---- @return boolean ok
-local function unsetWithdrawTx(commit)
-    assert(commit)
-    local sessions = require "lp.sessions"
-
-    local bv = stream:getBoxView()
-    if not bv:isOutboxKnown() then
-        bv:abort()
-        return false
-    end
-
-    local outbox = bv:getOutbox()
-    if not outbox then
-        bv:abort()
-        return true
-    end
-
-    local ud = assert(outbox.ud, "can't unset refund transactions") ---@type LpOutboxOutUd
-    local account = sessions.getAcctByUuid(ud.accountUuid)
-    if not account then
-        -- Account was deleted after the outgoing transaction was made. Can't unset.
-        bv:abort()
-        return false
-    end
-
-    account:transfer(outbox.amount, false)
-    bv:setOutbox()
-    state.revision = bv:prepare()
-    sessions.state:commitMany(state)
-    bv:commit()
-
-    return true
 end
 
 --- Sends the pending transaction.
+--- @param uuid string? The transaction uuid.
 --- @param timeout number? A timeout to abort sending after.
---- @return kstream.Result result The send result.
-local function sendPendingTx(timeout)
-    return stream:send(timeout)
-end
-
---- Defers the sending of a pending transaction.
---- @param guard MutexGuard The outbox mutex guard.
-local function deferSend(guard)
-    outboxMutexPass = guard
-    outboxMutexPassEvent.queue()
-end
-
-threads.register(function()
-    log:info("Started deferred stream outbox sender thread")
+--- @return "ok"|"error"|"timeout" result The send result.
+local function sendPendingTx(uuid, timeout)
+    if not uuid then return "ok" end
+    local timer = timeout and os.startTimer(timeout) or -1
     while true do
-        while not outboxMutexPass do outboxMutexPassEvent.pull() end
-        local guard = outboxMutexPass
-        outboxMutexPass = nil
-        stream:resolveOutbox()
-        local bv = stream:getBoxView()
-        local outbox = bv:getOutbox()
-        if outbox then
-            log:info("Deferred send " .. outbox.amount .. " to " .. outbox.to)
-            bv:abort()
-            if sendPendingTx() then
-                log:info("Deferred send OK")
-            else
-                log:error("Deferred send failure")
-                -- No timeout, so the transaction is malformed.
-                local bv = stream:getBoxView()
-                local outbox = assert(bv:getOutbox())
-                if outbox.ud then
-                    -- Outgoing withdrawal, abort and credit the account.
-                    log:info("Deferred send credit")
-                    bv:abort()
-                    unsetWithdrawTx(true)
-                else
-                    -- Incoming refund, swallow the Krist.
-                    log:info("Deferred send swallow")
-                    bv:setOutbox()
-                    bv:commit()
-                end
-            end
-        else
-            log:info("No outbox")
-            bv:abort()
+        local e, p1 = event.pull()
+        if e == sendSuccessEvent and p1 == uuid then
+            os.cancelTimer(timer)
+            return "ok"
+        elseif e == sendFailureEvent and p1 == uuid then
+            os.cancelTimer(timer)
+            return "error"
+        elseif e == "timer" and p1 == timer then
+            return "timeout"
         end
-        guard.unlock()
     end
-end)
+end
 
-threads.register(function() while true do handleOwnTx() end end)
-
-threads.register(function() stream:listen() end)
+threads.register(function() stream:run() end)
 
 return {
     TransferReceivedEvent = TransferReceivedEvent,
     address = address,
-    boxViewMutex = outboxMutex,
     getIsKristUp = getIsKristUp,
     fetchBalance = fetchBalance,
     sendPendingTx = sendPendingTx,
     setWithdrawTx = setWithdrawTx,
-    unsetWithdrawTx = unsetWithdrawTx,
-    deferSend = deferSend,
     state = state,
 }
