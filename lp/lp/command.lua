@@ -367,6 +367,34 @@ local function handleBuy(ctx)
 end
 
 ---@param ctx cbb.Context
+local function handleBuyk(ctx)
+    local label = ctx.args.item ---@type string
+    local amount = math.max(0, mClip(ctx.args.amount)) ---@type integer
+    if amount == 0 then return end
+
+    local pool = pools.getByTag(label)
+    if pool then
+        -- how many items would k buy?
+        -- k / (i + k)
+        -- i / (i + k)
+        local i = pool.allocatedItems
+        local k = pool.allocatedKrist
+        local f = 1 + pool:getFeeRate()
+        local iamt = math.floor(i / (1 + f * k / amount))
+        if pool:isDigital() then
+            return handleBuyDigital(ctx, pool, iamt)
+        else
+            return handleBuyPhysical(ctx, pool, iamt)
+        end
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+end
+
+---@param ctx cbb.Context
 local function handleSell(ctx)
     local label = ctx.args.item ---@type string
     local amount = mClip(ctx.args.amount) ---@type integer
@@ -1622,6 +1650,17 @@ local root = cbb.literal("lp") "lp" {
                 }
             },
         },
+    },
+    cbb.literal("buyk") "buyk" {
+        cbb.string "item" {
+            cbb.numberExpr "amount" {
+                help = "Buys 'amount' KST worth of an item",
+                execute = handleBuyk,
+                cbb.literal("confirm") "confirm" {
+                    execute = handleBuyk,
+                }
+            }
+        }
     },
     cbb.literal("sell") "sell" {
         cbb.string "item" {
