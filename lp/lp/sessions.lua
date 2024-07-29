@@ -70,6 +70,7 @@ end
 ---@field storageFrequency number|nil
 ---@field persist true|nil
 ---@field address string?
+---@field message string?
 local Account = {}
 
 ---Sets the username for an account, creating it if needeed.
@@ -146,9 +147,11 @@ function Account:allocFrequency(frequency, commit)
 end
 
 ---@param address string
+---@param message string
 ---@param commit boolean
-function Account:setAddress(address, commit)
+function Account:setAddress(address, message, commit)
     self.address = address
+    self.message = message
     if commit then state.commit() end
 end
 

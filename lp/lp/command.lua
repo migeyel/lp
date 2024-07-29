@@ -1607,6 +1607,7 @@ end
 ---@param ctx cbb.Context
 local function handleGoodbye(ctx)
     local address = ctx.args.address ---@type string
+    local message = ctx.args.message or "No message provided" ---@type string
 
     if #address > 32 then
         return ctx.replyErr(
@@ -1615,8 +1616,15 @@ local function handleGoodbye(ctx)
         )
     end
 
+    if #message > 64 then
+        return ctx.replyErr(
+            "Please set a shorter message (at most 64 chars)",
+            ctx.argTokens.message
+        )
+    end
+
     local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
-    acct:setAddress(address, true)
+    acct:setAddress(address, message, true)
     return ctx.reply({ text = "Address set to " .. address })
 end
 
@@ -1636,6 +1644,10 @@ local root = cbb.literal("lp") "lp" {
         cbb.string "address" {
             help = "Sets a custom address for post-shutdown payouts.",
             execute = handleGoodbye,
+            cbb.string "message" {
+                help = "Sets a custom address and message for post-shutdown payouts.",
+                execute = handleGoodbye,
+            },
         },
     },
     cbb.literal("whatsnew") "whatsnew" {
