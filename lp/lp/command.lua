@@ -1604,6 +1604,22 @@ local function handleDistribute(ctx)
     end
 end
 
+---@param ctx cbb.Context
+local function handleGoodbye(ctx)
+    local address = ctx.args.address ---@type string
+
+    if #address > 32 then
+        return ctx.replyErr(
+            "Please set a shorter address (at most 32 chars)",
+            ctx.argTokens.address
+        )
+    end
+
+    local acct = sessions.setAcct(ctx.data.user.uuid, ctx.user, true)
+    acct:setAddress(address, true)
+    return ctx.reply({ text = "Address set to " .. address })
+end
+
 local root = cbb.literal("lp") "lp" {
     cbb.literal("help") "help" {
         help = "Provides this help message",
@@ -1615,6 +1631,12 @@ local root = cbb.literal("lp") "lp" {
                 return cbb.sendHelpTopic(2, ctx, 10, mClip(ctx.args.page))
             end
         }
+    },
+    cbb.literal("goodbye") "goodbye" {
+        cbb.string "address" {
+            help = "Sets a custom address for post-shutdown payouts.",
+            execute = handleGoodbye,
+        },
     },
     cbb.literal("whatsnew") "whatsnew" {
         help = "Reports new changes to the shop software",
