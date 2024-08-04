@@ -229,7 +229,9 @@ end
 ---@param amount number
 ---@return number
 function Pool:buyFee(amount)
-    return self:buyPrice(amount) * self:getFeeRate()
+    local price = self:buyPrice(amount)
+    if price == 1 / 0 then return 0 end
+    return price * self:getFeeRate()
 end
 
 ---@param amount number
