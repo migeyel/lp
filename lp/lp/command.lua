@@ -380,7 +380,12 @@ local function handleBuyk(ctx)
         local i = pool.allocatedItems
         local k = pool.allocatedKrist
         local f = 1 + pool:getFeeRate()
-        local iamt = math.floor(i / (1 + f * k / amount))
+        local iamt
+        if not pool.liquidating then
+            iamt = math.floor(i / (1 + f * k / amount))
+else
+            iamt = math.floor(amount / (k / i))
+        end
         if pool:isDigital() then
             return handleBuyDigital(ctx, pool, iamt)
         else
@@ -931,7 +936,7 @@ local function handleArb(ctx)
 
     local pool = pools.getByTag(label)
     if pool then
-        if otherPrice >= pool:midPrice() then
+        if otherPrice >= pool:sellPrice(1) then
             return ctx.reply({
                 text = "There is no way to profit from arbitrage at current "
                     .. "prices",
@@ -1628,6 +1633,25 @@ local function handleGoodbye(ctx)
     return ctx.reply({ text = "Address set to " .. address })
 end
 
+---@param ctx cbb.Context
+local function handleLiquidate(ctx)
+    if ctx.user:lower() ~= "pg231" then return end -- lazy
+    local label = ctx.args.item ---@type string
+    local pool = pools.getByTag(label)
+    if pool then
+        pool.liquidating = not pool.liquidating
+        pools.state.commit()
+        return ctx.reply({
+            text = "Pool liquidating set to " .. tostring(pool.liquidating),
+        })
+    else
+        return ctx.replyErr(
+            ("The item pool %q doesn't exist"):format(label),
+            ctx.argTokens.item
+        )
+    end
+end
+
 local root = cbb.literal("lp") "lp" {
     cbb.literal("help") "help" {
         help = "Provides this help message",
@@ -1835,6 +1859,11 @@ local root = cbb.literal("lp") "lp" {
         cbb.numberExpr "amount" {
             execute = handleDistribute,
         },
+    },
+cbb.literal("liquidate") "liquidaate" {
+        cbb.string "item" {
+            execute = handleLiquidate,
+        }
     },
     cbb.literal("proposition") "proposition" {
         cbb.literal("help") "help" {

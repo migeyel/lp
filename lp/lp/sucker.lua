@@ -25,7 +25,7 @@ local function suck()
             local poolId = item.name .. "~" .. (item.nbt or "NONE")
             local session = sessions.get()
             local pool = pools.get(poolId)
-            if pool and session then
+            if pool and not pool.liquidating and session then
                 local amt = inventory.get().pullItems(
                     modem.getNameLocal(),
                     1

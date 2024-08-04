@@ -5,8 +5,9 @@ local threads = require "lp.threads"
 local event = require "lp.event"
 
 local MEAN_ALLOCATION_TIME = 60
-local ALLOCATION_RATE = 0.002
+local ALLOCATION_RATE = 0.006
 local ALLOCATION_KRIST_MIN = 0.5
+local LIQ_RATE = 5.93e-7
 
 local globalReallocEvent = event.register()
 
@@ -177,13 +178,30 @@ local function rebalance(rate, commit)
     end
 
     globalReallocEvent.queue()
-    if commit then wallet.state:commitMany(pools.state) end
+    if commit then pools.state:commitMany(wallet.state) end
 end
 
 threads.register(function()
     while true do
         sleep(math.random(0, 2 * MEAN_ALLOCATION_TIME))
         rebalance(ALLOCATION_RATE, true)
+    end
+end)
+
+threads.register(function()
+    local c = math.floor(math.random() * 6000 + 6000.5) / 20
+    sleep(c)
+    while true do
+        local liq = 1 - (1 - LIQ_RATE) ^ c
+        for _, pool in pools.pools() do
+            if pool.liquidating then
+                local delta = util.mCeil(liq * pool.allocatedKrist)
+                pool:reallocKst(-delta, false, true)
+                wallet.reallocateFee(delta, false)
+                pools.state:commitMany(wallet.state)
+            end
+        end
+        globalReallocEvent.queue()
     end
 end)
 

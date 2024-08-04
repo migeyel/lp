@@ -46,6 +46,7 @@ local poolTags = {}
 ---@field allocatedKrist number
 ---@field dynAlloc DynamicAllocationScheme?
 ---@field feeRate number?
+---@field liquidating boolean?
 local Pool = {}
 
 ---@param id string
@@ -184,7 +185,11 @@ end
 
 ---@return number
 function Pool:getFeeRate()
-    return self.feeRate or FEE_RATE
+    if not self.liquidating then
+        return self.feeRate or FEE_RATE
+    else
+        return 0
+    end
 end
 
 ---@param rate number
@@ -199,13 +204,21 @@ end
 ---@return number
 function Pool:buyPrice(amount)
     if amount >= self.allocatedItems then return 1 / 0 end
-    return mCeil(amount * self.allocatedKrist / (self.allocatedItems - amount))
+    if not self.liquidating then
+        return mCeil(amount * self.allocatedKrist / (self.allocatedItems - amount))
+    else
+        return mCeil(amount * self.allocatedKrist / self.allocatedItems)
+    end
 end
 
 ---@param amount number
 ---@return number
 function Pool:sellPrice(amount)
-    return mFloor(amount * self.allocatedKrist / (self.allocatedItems + amount))
+    if not self.liquidating then
+        return mFloor(amount * self.allocatedKrist / (self.allocatedItems + amount))
+    else
+        return 0
+    end
 end
 
 ---@return number

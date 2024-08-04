@@ -284,9 +284,17 @@ function Account:tryBuy(pool, amount, commit)
     if self.balance < priceWithFee then return false, 0, 0 end
 
     self:transfer(-priceWithFee, false)
-    pool:reallocItems(-amount, false)
-    pool:reallocKst(priceNoFee, false)
-    wallet.reallocateFee(fee / 2, false)
+
+    if not pool.liquidating then
+        pool:reallocItems(-amount, false)
+        pool:reallocKst(priceNoFee, false)
+        wallet.reallocateFee(fee / 2, false)
+    else
+        pool:reallocItems(-amount, false)
+        pool:reallocKst(-priceNoFee, false)
+        wallet.reallocateFee(2 * priceNoFee, false)
+    end
+
     if commit then pools.state:commitMany(state, wallet.state) end
 
     buyEvent.queue(pool:id())

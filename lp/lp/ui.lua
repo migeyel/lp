@@ -269,10 +269,17 @@ local function addListing(listingFrame, pool, index)
         :setBackground(listingPriceBg(0, 0, index))
         :setPosition("(parent.w - self.w) / 2", 1)
 
-    midframe:addLabel()
-        :setText(pool.label)
-        :setForeground(colors.gray)
-        :setPosition("(parent.w - self.w) / 2 + 1", 1)
+    if not pool.liquidating then
+        midframe:addLabel()
+            :setText(pool.label)
+            :setForeground(colors.gray)
+            :setPosition("(parent.w - self.w) / 2 + 1", 1)
+    else
+        midframe:addLabel()
+            :setText("[Liq]" .. pool.label)
+            :setForeground(colors.gray)
+            :setPosition("(parent.w - self.w) / 2 + 1", 1)
+    end
 
     local priceLabel = midframe:addLabel()
         :setText(("\164%g"):format(pool:midPrice()))
@@ -395,6 +402,7 @@ for _, cat in ipairs(categories) do
     local lf = addListingFrame(cat)
     for i, id in ipairs(ids) do
         updateListings[id] = addListing(lf, assert(pools.get(id)), i)
+        sleep()
     end
 end
 

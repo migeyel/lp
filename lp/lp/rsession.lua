@@ -250,9 +250,15 @@ local function handleBuy(id, rch, uuid, buy)
 
     -- Execute the transaction.
     account:transfer(-buyPriceWithFee, false)
-    pool:reallocItems(-pushTransfer.amount, false)
-    pool:reallocKst(buyPriceNoFee, false)
-    wallet.reallocateFee(buyFee / 2, false)
+    if not pool.liquidating then
+        pool:reallocItems(-pushTransfer.amount, false)
+        pool:reallocKst(buyPriceNoFee, false)
+        wallet.reallocateFee(buyFee / 2, false)
+    else
+        pool:reallocItems(-pushTransfer.amount, false)
+        pool:reallocKst(-buyPriceNoFee, false)
+        wallet.reallocateFee(2 * buyPriceNoFee, false)
+    end
 
     local orderExecution = {
         amount = pushTransfer.amount,
