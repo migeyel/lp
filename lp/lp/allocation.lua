@@ -7,7 +7,7 @@ local event = require "lp.event"
 local MEAN_ALLOCATION_TIME = 60
 local ALLOCATION_RATE = 0.006
 local ALLOCATION_KRIST_MIN = 0.5
-local LIQ_RATE = 5.93e-7
+local LIQ_RATE = 2.33e-7
 
 local globalReallocEvent = event.register()
 
