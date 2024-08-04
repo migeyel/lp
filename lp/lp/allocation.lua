@@ -191,18 +191,16 @@ end)
 threads.register(function()
     local c = math.floor(math.random() * 6000 + 6000.5) / 20
     sleep(c)
-    while true do
-        local liq = 1 - (1 - LIQ_RATE) ^ c
-        for _, pool in pools.pools() do
-            if pool.liquidating then
-                local delta = util.mCeil(liq * pool.allocatedKrist)
-                pool:reallocKst(-delta, false, true)
-                wallet.reallocateFee(delta, false)
-                pools.state:commitMany(wallet.state)
-            end
+    local liq = 1 - (1 - LIQ_RATE) ^ c
+    for _, pool in pools.pools() do
+        if pool.liquidating then
+            local delta = util.mCeil(liq * pool.allocatedKrist)
+            pool:reallocKst(-delta, false, true)
+            wallet.reallocateFee(delta, false)
+            pools.state:commitMany(wallet.state)
         end
-        globalReallocEvent.queue()
     end
+    globalReallocEvent.queue()
 end)
 
 return {
