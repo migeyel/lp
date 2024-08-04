@@ -405,7 +405,9 @@ for _, cat in ipairs(categories) do
 
     local lf = addListingFrame(cat)
     for i, id in ipairs(ids) do
-        updateListings[id] = addListing(lf, assert(pools.get(id)), i)
+        local listing = addListing(lf, assert(pools.get(id)), i)
+        if not updateListings[id] then updateListings[id] = {} end
+        updateListings[id][#updateListings[id] + 1] = listing
         sleep()
     end
 end
@@ -419,10 +421,10 @@ threads.register(function()
         if e == sessions.startEvent or e == sessions.endEvent or e == sessions.sessionBalChangeEvent then
             updateBottomBar()
         elseif e == pools.priceChangeEvent and updateListings[id] then
-            updateListings[id]()
+            for _, v in ipairs(updateListings[id]) do v() end
         elseif e == allocation.globalReallocEvent then
             for _, updateListing in pairs(updateListings) do
-                updateListing()
+                for _, v in ipairs(updateListing) do v() end
             end
         end
     end
