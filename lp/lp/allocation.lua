@@ -6,6 +6,7 @@ local event = require "lp.event"
 
 local MEAN_ALLOCATION_TIME = 60
 local ALLOCATION_RATE = 0.002
+local ALLOCATION_KRIST_MIN = 0.5
 
 local globalReallocEvent = event.register()
 
@@ -130,6 +131,9 @@ local function rebalance(rate, commit)
     local total = 0
     for _, amt in pairs(positiveDeltas) do total = total + amt end
     for _, amt in pairs(negativeDeltas) do total = total - amt end
+
+    local minRate = math.min(1, ALLOCATION_KRIST_MIN / total)
+    rate = math.max(rate, minRate)
 
     local kstToMove = util.mFloor(rate * total)
 
