@@ -269,16 +269,14 @@ local function addListing(listingFrame, pool, index)
         :setBackground(listingPriceBg(0, 0, index))
         :setPosition("(parent.w - self.w) / 2", 1)
 
+    local poolLabel = midframe:addLabel()
+        :setForeground(colors.gray)
+        :setPosition("(parent.w - self.w) / 2 + 1", 1)
+
     if not pool.liquidating then
-        midframe:addLabel()
-            :setText(pool.label)
-            :setForeground(colors.gray)
-            :setPosition("(parent.w - self.w) / 2 + 1", 1)
+        poolLabel:setText(pool.label)
     else
-        midframe:addLabel()
-            :setText("[Liq]" .. pool.label)
-            :setForeground(colors.gray)
-            :setPosition("(parent.w - self.w) / 2 + 1", 1)
+        poolLabel:setText("[Liq] " .. pool.label)
     end
 
     local priceLabel = midframe:addLabel()
@@ -342,6 +340,12 @@ local function addListing(listingFrame, pool, index)
 
         local fg = listingPriceFg(unroundedPrice, newUnroundedPrice)
         priceLabel:setText(("\164%g"):format(pool:midPrice()))
+
+        if not pool.liquidating then
+            poolLabel:setText(pool.label)
+        else
+            poolLabel:setText("[Liq] " .. pool.label)
+        end
 
         if doEffect then
             local bg = listingPriceBg(unroundedPrice, newUnroundedPrice, index)

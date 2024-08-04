@@ -1641,6 +1641,7 @@ local function handleLiquidate(ctx)
     if pool then
         pool.liquidating = not pool.liquidating
         pools.state.commit()
+        pools.priceChangeEvent.queue(pool:id())
         return ctx.reply({
             text = "Pool liquidating set to " .. tostring(pool.liquidating),
         })
