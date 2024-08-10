@@ -80,7 +80,7 @@ function HistoryState.decode(encoded)
         local newMKst = (lastPrice.mKst or 0) + tx.deltaMKst
         local newPrice = newMKst / newItems
 
-        if newPrice > 0 and newPrice < 2 ^ 40 then
+        if newPrice >= 0 and newPrice < 2 ^ 40 then
             poolPrices[#poolPrices + 1] = {
                 timestamp = lastTimestamp,
                 items = (lastPrice.items or 0) + tx.deltaItems,
