@@ -31,26 +31,6 @@ local function mkUrlLoader(filename, url)
     end
 end
 
-t.k = mkUrlLoader(
-    "k.lua",
-    "https://github.com/tmpim/k.lua/raw/master/k.lua"
-)
-
-t.r = mkUrlLoader(
-    "r.lua",
-    "https://github.com/tmpim/r.lua/raw/master/r.lua"
-)
-
-t.w = mkUrlLoader(
-    "w.lua",
-    "https://github.com/tmpim/w.lua/raw/master/w.lua"
-)
-
-t.jua = mkUrlLoader(
-    "jua.lua",
-    "https://github.com/tmpim/jua/raw/master/jua.lua"
-)
-
 t.abstractInvLib = mkUrlLoader(
     "abstractInvLib.lua",
     "https://gist.githubusercontent.com/MasonGulu/57ef0f52a93304a17a9eaea21f431de6/raw/e604740f9c05140d239901d87c1a43cdc8d16000/abstractInvLib.lua"
